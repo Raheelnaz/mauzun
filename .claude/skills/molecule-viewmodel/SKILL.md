@@ -1,12 +1,12 @@
 ---
 name: molecule-viewmodel
-description: Use when writing or testing ViewModels built on the molecule-viewmodel library (MoleculeViewModel, UiFactory, the test { } harness). Covers presenter rules, effects, and test idioms.
+description: Instructions for writing and testing molecule-viewmodel presenters.
 ---
 
 # molecule-viewmodel
 
-A ViewModel base class for Molecule. Screen logic is a `@Composable` function. State comes out
-as a `StateFlow`, one-off effects come out of a channel, and tests drive the presenter directly.
+A ViewModel base class for Molecule. Screen logic lives in a `@Composable` presenter, state is
+exposed as a `StateFlow`, and tests call the presenter directly.
 
 Dependencies:
 
@@ -15,8 +15,8 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.2.0")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.2.0")
 ```
 
-Needs minSdk 23, Kotlin 2.1 or newer, the Compose compiler plugin on the consuming module, kotlinx-coroutines-test
-for tests, and `testOptions { unitTests.isReturnDefaultValues = true }`.
+Requires minSdk 23, Kotlin 2.1 or newer, and the Compose compiler plugin. Tests also need
+`kotlinx-coroutines-test` and `testOptions { unitTests.isReturnDefaultValues = true }`.
 
 ## Writing a ViewModel
 
@@ -41,17 +41,17 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 
 Rules:
 
-- Collect `events` with `CollectEvents`, always. Never put a collector behind an `if`
-  or inside a keyed `LaunchedEffect`: events sent while no collector is active are dropped.
-  Multiple collectors are fine. All of them receive every event.
+- Always collect `events` with `CollectEvents`. Do not put the collector behind an `if` or
+  inside a keyed `LaunchedEffect`; events are lost while the collector is absent. Multiple
+  collectors are supported and each receives every event.
 - Write snapshot state from event handlers and effects only, never in the composition body. An
   unconditional write in the body recomposes forever.
 - Call `emitEffect` from handlers and effects only, never in the composition body.
 - In broad catches inside presenter effects (`catch (t: Throwable)`), rethrow
   `CancellationException` before mapping to an error state. A keyed effect restart cancels the
   old coroutine where it suspended, and swallowing that shows an error that never happened.
-- `rememberSaveable` silently does nothing in a presenter (there is no saveable registry). Use
-  `SavedStateHandle` for process-death state.
+- `rememberSaveable` falls back to `remember` because the presenter has no saveable registry.
+  Use `SavedStateHandle` for process-death state.
 - If a screen has no effects, use `Nothing` as the Effect type.
 - `@HiltViewModel` goes on the subclass. For screens with arguments, use
   `@HiltViewModel(assistedFactory = ...)` with `@AssistedInject`.
@@ -68,10 +68,10 @@ UiFactory(
 }
 ```
 
-`UiFactory` collects state with the lifecycle and delivers effects while at least STARTED.
-Effects buffer while the screen is stopped. Pass `effectsMinActiveState = Lifecycle.State.RESUMED`
-to wait out navigation transitions. Collect `effects` from exactly one place. Two concurrent
-collectors silently split the stream.
+`UiFactory` collects state with the lifecycle and effects while at least STARTED. Effects stay
+buffered while the screen is stopped. Use `effectsMinActiveState = Lifecycle.State.RESUMED` to
+wait for navigation transitions. Collect `effects` from one place; concurrent collectors split
+the channel.
 
 ## Testing
 
@@ -88,15 +88,11 @@ fun increment() = runTest {
 
 - Drive events with `sendEvent`, never `vm.onEvent`. `onEvent` feeds the production channel,
   which the harness does not read. After 50 buffered sends it throws.
-- `sendEvent` is synchronous: everything the event triggers has run when it returns, so assert
-  on the next line. Work behind a `delay` or another dispatcher is the exception. Step past it
-  with `awaitState()`.
-- `awaitState()` returns the next distinct model. Consecutive equal models are filtered, the
-  same stream a `StateFlow` gives the UI.
-- The block is strict: any state or effect emitted but never asserted fails the test. Use
-  `skipStates(n)` for states you don't care about. There is no predicate-based skip.
+- `sendEvent` is synchronous, so the next line can assert its result. Work behind a `delay` or
+  another dispatcher is the exception; wait for that work with `awaitState()`.
+- `awaitState()` returns the next distinct model, matching the production `StateFlow`.
+- Unasserted states and effects fail the test. Use `skipStates(n)` for states you do not need.
 - `expectNoStateChanges()` and `expectNoEffects()` are valid immediately after `sendEvent`.
 - Tests run on the JVM with plain `runTest`. No Robolectric, no dispatcher setup, no main
   looper.
-- Construct a fresh ViewModel per `test { }` block. Channels are per-instance and leftovers
-  leak across blocks.
+- Construct a fresh ViewModel for each `test { }` block.

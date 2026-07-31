@@ -71,12 +71,6 @@ private class EffectProdViewModel : MoleculeViewModel<Int, Int, String>() {
     }
 }
 
-/**
- * The harness substitutes its own event stream, so these promises about the production wiring
- * (the real onEvent channel, the real state molecule, the real effects channel) are tested here
- * against `state` and `onEvent` directly. The only tests in the project that need a Main
- * dispatcher, because viewModelScope does.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductionContractTest {
 
@@ -89,7 +83,7 @@ class ProductionContractTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `events sent before state is first collected are delivered once it is`() = runTest(dispatcher) {
+    fun `events sent before state starts are delivered`() = runTest(dispatcher) {
         val vm = EchoProdViewModel()
         vm.onEvent(41)
         vm.onEvent(42)
@@ -114,7 +108,7 @@ class ProductionContractTest {
     }
 
     @Test
-    fun `effects emitted with no collector buffer and deliver in order`() = runTest(dispatcher) {
+    fun `effects wait for a collector and keep their order`() = runTest(dispatcher) {
         val vm = EffectProdViewModel()
         vm.state
         advanceUntilIdle()
@@ -129,8 +123,6 @@ class ProductionContractTest {
         }
     }
 
-    // Guards the snapshot notification plumbing: snapshotFlow only emits when apply
-    // notifications fire, and on this path the molecule is the only thing sending them.
     @Test
     fun `snapshotFlow observes presenter state on the production path`() = runTest(dispatcher) {
         val log = mutableListOf<String>()
@@ -145,9 +137,9 @@ class ProductionContractTest {
     }
 
     @Test
-    fun `the buffer crashes loudly on event 51 when nothing drains it`() {
-        val vm = EchoProdViewModel() // state never collected, so nothing consumes the channel
-        repeat(50) { vm.onEvent(it) } // the channel's capacity
+    fun `the event buffer throws on the 51st unconsumed event`() {
+        val vm = EchoProdViewModel()
+        repeat(50) { vm.onEvent(it) }
         assertFailure { vm.onEvent(50) }.isInstanceOf(IllegalStateException::class)
     }
 
@@ -157,6 +149,6 @@ class ProductionContractTest {
         val vm = EchoProdViewModel()
         store.put("vm", vm)
         store.clear()
-        repeat(100) { vm.onEvent(it) } // well past capacity, absorbed by the closed channel
+        repeat(100) { vm.onEvent(it) }
     }
 }

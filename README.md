@@ -39,42 +39,35 @@ fun increment() = runTest {
 
 Tests run on the JVM. No Robolectric, no dispatcher setup.
 
-## Introduction
+## Why this exists
 
 [Molecule](https://github.com/cashapp/molecule) runs Compose without UI, so presenter logic can
 use `remember`, snapshot state, and `LaunchedEffect` in place of `combine`, `stateIn`, and
-friends. Molecule deliberately stops there: it hands back a `StateFlow` and leaves the Android
-questions open. Where does the molecule run? How do click events reach it? How does a
-navigation effect reach a single collector? What does a test look like?
+friends. It does not provide Android ViewModel integration or an event/effect API. I kept
+rebuilding that glue, so this library packages it:
 
-This library is one set of answers, for apps already built on `ViewModel`:
+- The molecule starts lazily in `viewModelScope` with `RecompositionMode.Immediate`. Its first
+  model is available synchronously.
+- Events wait in a buffered channel until the presenter starts, then broadcast to every event
+  collector in it. The buffer throws on overflow instead of dropping an event.
+- Effects also use a buffered channel. They wait while the UI is stopped and go to one
+  collector.
+- The test artifact runs presenters with the same recomposition mode used in production.
 
-- The molecule runs in `viewModelScope` under `RecompositionMode.Immediate`, started lazily on
-  first use. The first composition is synchronous, so `state` always has a value, and
-  recomposition follows data changes rather than display frames.
-- Events enter through a buffered channel and broadcast to every collector in the presenter.
-  Events sent before the presenter is composing wait for it. Fifty unconsumed events crashes
-  rather than dropping input. Events after the ViewModel is cleared are dropped.
-- Effects are a channel, not a SharedFlow. They buffer while the UI is stopped, and each
-  effect reaches a single consumer.
-- Tests run the same Immediate clock as production, so the presenter recomposes identically in
-  both.
+The molecule uses `Dispatchers.Main`, not `viewModelScope`'s `Main.immediate`. Deferring snapshot
+notifications until after the current write avoids the invalidation bug in
+[cashapp/molecule#465](https://github.com/cashapp/molecule/issues/465). No Compose UI frame clock
+is involved.
 
-The molecule runs on `Dispatchers.Main` rather than `viewModelScope`'s `Main.immediate`.
-Snapshot notifications sent in the middle of a write break Compose UI's change tracking
-(cashapp/molecule#465). Plain Main sends them after the write finishes, and the molecule needs
-nothing from Compose UI to keep recomposing.
-
-Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library is the ViewModel
-wiring around it, nothing more.
+Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library supplies the Android
+ViewModel integration.
 
 ## Usage
 
-`UiFactory` hosts a presenter. It collects state with the lifecycle and delivers effects only
-while the screen is at least STARTED, so a stopped screen buffers effects instead of navigating
-while invisible. It behaves the same under Navigation 2 and Navigation 3. Both hold an
-animating destination at STARTED, so effects can fire during the animation. Pass
-`effectsMinActiveState = Lifecycle.State.RESUMED` to wait for it to settle.
+`UiFactory` collects state with the lifecycle. It collects effects while the screen is at least
+STARTED, which leaves them buffered while the screen is stopped. Use
+`effectsMinActiveState = Lifecycle.State.RESUMED` if navigation effects must wait until a
+transition finishes.
 
 ```kotlin
 composable("counter") {
@@ -92,9 +85,8 @@ composable("counter") {
 }
 ```
 
-The same screen under Navigation 3. The ViewModelStore decorator scopes each ViewModel to its
-back-stack entry. Without it, `hiltViewModel()` resolves against the activity and every entry
-shares one instance.
+With Navigation 3, include the ViewModelStore decorator so each back-stack entry gets its own
+ViewModel:
 
 ```kotlin
 NavDisplay(
@@ -138,9 +130,7 @@ class ProductViewModel @AssistedInject constructor(
     }
 
     @Composable
-    override fun present(events: Flow<ProductEvent>): ProductState {
-        // a presenter like any other, with productId in scope
-    }
+    override fun present(events: Flow<ProductEvent>): ProductState = TODO()
 }
 ```
 
@@ -152,20 +142,17 @@ val vm = hiltViewModel<ProductViewModel, ProductViewModel.Factory>(
 
 ## Writing presenters
 
-**Collect `events` with `CollectEvents`.**
+Use `CollectEvents` for event handling:
 
 ```kotlin
 CollectEvents(events) { event -> ... }
 ```
 
-It collects for the lifetime of the composition, and its handler scope can `launch` work that
-outlives a single event. Position in the body doesn't matter, conditions do: a collector behind
-an `if` has windows with nobody listening, and events sent in a window go nowhere. Same for
-rolling your own collector inside a keyed `LaunchedEffect`, which restarts when the key
-changes. Multiple collectors are fine, events broadcast to all of them. A collector added late
-misses events sent before it started.
+The collector lives as long as the presenter composition. Do not put it behind an `if` or use a
+keyed `LaunchedEffect` as an event collector; events sent while that collector is absent are
+lost. Multiple `CollectEvents` calls are supported and each receives every event.
 
-**Change state inside handlers and effects, not in the body.**
+Change state from an event handler or effect, not directly in the composition body:
 
 ```kotlin
 var count by remember { mutableStateOf(0) }
@@ -188,9 +175,8 @@ vm.test {
 }
 ```
 
-`sendEvent` is synchronous. By the time it returns the presenter has handled the event, so the
-next line can assert. `awaitState` returns distinct models, the same stream a `StateFlow` gives
-the UI.
+`sendEvent` is synchronous. When it returns, the presenter has handled the event. `awaitState`
+returns only distinct models, matching the production `StateFlow`.
 
 Anything the presenter emitted that the test didn't assert fails the test.
 
@@ -204,9 +190,9 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.2.0")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.2.0")
 ```
 
-Requires minSdk 23 and Kotlin 2.1 or newer. Presenters are `@Composable`, so the module that subclasses
-`MoleculeViewModel` needs the Compose compiler plugin. Unit tests need
-`kotlinx-coroutines-test`, and Compose logs through `android.util.Log` on some paths, so:
+Requires minSdk 23 and Kotlin 2.1 or newer. The module that subclasses `MoleculeViewModel` needs
+the Compose compiler plugin. Unit tests need `kotlinx-coroutines-test`. Compose also calls
+`android.util.Log` on some JVM test paths, so enable default Android return values:
 
 ```kotlin
 android {
@@ -215,11 +201,6 @@ android {
     }
 }
 ```
-
-Working with a coding agent? The library's rules ship as a skill at
-`.claude/skills/molecule-viewmodel/SKILL.md`. The format works with Claude Code, Codex, Copilot,
-Cursor, and friends: copy the folder into your project's skills directory, or point your
-AGENTS.md at the file.
 
 ## License
 

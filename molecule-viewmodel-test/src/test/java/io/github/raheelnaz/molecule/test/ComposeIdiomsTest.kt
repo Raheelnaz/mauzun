@@ -117,7 +117,6 @@ private class SideEffectViewModel(
     }
 }
 
-/** Ordinary Compose effect APIs work inside presenters. These pin the ones beyond LaunchedEffect. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ComposeIdiomsTest {
 
@@ -176,7 +175,7 @@ class ComposeIdiomsTest {
             assertThat(compositions).hasSize(1)
             sendEvent(1)
             expectNoStateChanges()
-            assertThat(compositions).hasSize(1) // count changed, result did not: no recomposition
+            assertThat(compositions).hasSize(1)
             sendEvent(2)
             assertThat(awaitState()).isEqualTo(true)
             assertThat(compositions).hasSize(2)
@@ -184,7 +183,7 @@ class ComposeIdiomsTest {
     }
 
     @Test
-    fun `rememberUpdatedState hands a long-lived effect the latest value without restarting it`() = runTest {
+    fun `rememberUpdatedState exposes the latest value without restarting the effect`() = runTest {
         val log = mutableListOf<String>()
         UpdatedStateViewModel(log).test {
             assertThat(awaitState()).isEqualTo(0)
@@ -195,7 +194,7 @@ class ComposeIdiomsTest {
     }
 
     @Test
-    fun `SideEffect runs after each composition that lands`() = runTest {
+    fun `SideEffect runs after every composition`() = runTest {
         val log = mutableListOf<String>()
         SideEffectViewModel(log).test {
             assertThat(awaitState()).isEqualTo(0)

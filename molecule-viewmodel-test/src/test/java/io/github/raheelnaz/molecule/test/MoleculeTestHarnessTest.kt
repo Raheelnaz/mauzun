@@ -36,7 +36,6 @@ private class TwoCollectorViewModel(
 
 class MoleculeTestHarnessTest {
 
-    /** Fails if the events share ever moves off Dispatchers.Unconfined. */
     @Test
     fun `sendEvent completes its cascade before returning`() = runTest {
         EchoViewModel().test {

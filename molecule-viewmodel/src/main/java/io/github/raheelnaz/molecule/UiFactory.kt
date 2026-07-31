@@ -10,12 +10,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 
 /**
- * Hosts a [MoleculePresenter]: collects state and delivers effects while the screen is at least
- * STARTED, so a stopped screen buffers effects instead of acting on them while invisible.
- *
- * Navigation 2 and 3 both hold a destination at STARTED while a transition animates, so effects
- * can fire mid-animation. Pass [effectsMinActiveState] = RESUMED if an effect that mutates the
- * back stack during a transition is a problem. RESUMED means the transition has settled.
+ * Collects [presenter] state with the lifecycle and handles effects while the lifecycle is at
+ * least [effectsMinActiveState].
  */
 @Composable
 public fun <Event : Any, Model : Any, Effect : Any> UiFactory(

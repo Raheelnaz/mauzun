@@ -17,36 +17,30 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.shareIn
 
 /**
- * Drives [MoleculeViewModel.present] with a test-owned event stream.
+ * Runs [MoleculeViewModel.present] with a test event stream. [MoleculeTestScope.sendEvent] runs
+ * immediate work synchronously. Models are distinct, and unasserted models or effects fail the
+ * test.
  *
- * [MoleculeTestScope.sendEvent] runs the event's entire cascade before returning, so the next
- * line can assert. [MoleculeTestScope.awaitState] yields distinct models, matching what the UI
- * receives from the StateFlow in production. Effects are the ViewModel's real effects. States
- * and effects left unasserted when the block ends fail the test.
- *
- * Use sendEvent, not [MoleculeViewModel.onEvent]. The production channel is not connected here.
+ * Use [MoleculeTestScope.sendEvent], not [MoleculeViewModel.onEvent].
  */
 public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Event, Model, Effect>.test(
     validate: suspend MoleculeTestScope<Event, Model, Effect>.() -> Unit,
 ): Unit = turbineScope {
     val events = Channel<Event>(capacity = Channel.UNLIMITED)
 
-    // A hot share like production, so multiple collectors in a presenter all see every event.
-    // Unconfined keeps the chain from trySend through recomposition inline, which is what lets
-    // sendEvent complete its cascade before returning. The Job lets the finally block cancel
-    // the share, which never completes on its own and would otherwise keep turbineScope waiting.
+    // Match production's broadcast behavior. Unconfined keeps sendEvent synchronous, and the
+    // extra Job gives finally something to cancel when the test ends.
     val eventsScope = CoroutineScope(currentCoroutineContext() + Job() + Dispatchers.Unconfined)
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
     val effectsTurbine = effects.testIn(this)
     val stateTurbine = moleculeFlow(RecompositionMode.Immediate) { present(eventsFlow) }
-        // Match the StateFlow in production, which drops values equal to the current one.
+        // StateFlow does not emit a value equal to its current value.
         .distinctUntilChanged()
         .testIn(this)
 
     try {
         MoleculeTestScope(stateTurbine, effectsTurbine, events).validate()
-        // Only on success, so it cannot mask the real failure.
         stateTurbine.ensureAllEventsConsumed()
         effectsTurbine.ensureAllEventsConsumed()
     } finally {
@@ -64,13 +58,10 @@ public class MoleculeTestScope<Event : Any, Model : Any, Effect : Any> internal 
     /** The next distinct model. */
     public suspend fun awaitState(): Model = stateTurbine.awaitItem()
 
-    /**
-     * Skips [count] distinct models. Count-based on purpose: a predicate that never matches
-     * would hang the test instead of failing it.
-     */
+    /** Skips the next [count] distinct models. */
     public suspend fun skipStates(count: Int): Unit = stateTurbine.skipItems(count)
 
-    /** Valid right after [sendEvent]. Only delayed or re-dispatched work is not yet visible. */
+    /** Checks for an immediate model change after [sendEvent]. */
     public fun expectNoStateChanges(): Unit = stateTurbine.expectNoEvents()
 
     public fun sendEvent(event: Event) {
