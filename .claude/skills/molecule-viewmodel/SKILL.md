@@ -11,8 +11,8 @@ as a `StateFlow`, one-off effects come out of a channel, and tests drive the pre
 Dependencies:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.2")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.2")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.2.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.2.0")
 ```
 
 Needs minSdk 23, Kotlin 2.1 or newer, the Compose compiler plugin on the consuming module, kotlinx-coroutines-test

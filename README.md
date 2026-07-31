@@ -200,8 +200,8 @@ channel, which the harness doesn't read.
 ## Download
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.2")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.2")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.2.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.2.0")
 ```
 
 Requires minSdk 23 and Kotlin 2.1 or newer. Presenters are `@Composable`, so the module that subclasses
