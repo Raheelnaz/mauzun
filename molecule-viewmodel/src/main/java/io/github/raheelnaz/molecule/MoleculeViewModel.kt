@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
+import app.cash.molecule.SnapshotNotifier
 import app.cash.molecule.launchMolecule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -40,7 +41,10 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     // Immediate brings its own frame clock: a synchronous first composition so state always has
     // a value, then recomposition when data changes rather than on display frames.
     final override val state: StateFlow<Model> by lazy {
-        viewModelScope.launchMolecule(RecompositionMode.Immediate) {
+        viewModelScope.launchMolecule(
+            mode = RecompositionMode.Immediate,
+            snapshotNotifier = SnapshotNotifier.External,
+        ) {
             present(events)
         }
     }
