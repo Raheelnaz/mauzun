@@ -45,7 +45,7 @@ Tests run on the JVM. No Robolectric, no dispatcher setup.
 use `remember`, snapshot state, and `LaunchedEffect` in place of `combine`, `stateIn`, and
 friends. Molecule deliberately stops there: it hands back a `StateFlow` and leaves the Android
 questions open. Where does the molecule run? How do click events reach it? How does a
-navigation effect fire exactly once? What does a test look like?
+navigation effect reach a single collector? What does a test look like?
 
 This library is one set of answers, for apps already built on `ViewModel`:
 
