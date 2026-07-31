@@ -60,6 +60,11 @@ This library is one set of answers, for apps already built on `ViewModel`:
 - Tests run the same Immediate clock as production, so the presenter recomposes identically in
   both.
 
+The molecule runs on `Dispatchers.Main` rather than `viewModelScope`'s `Main.immediate`.
+Snapshot notifications sent inline from a write observer corrupt Compose UI's invalidation
+tracking (cashapp/molecule#465). Deferred dispatch sends them after the write phase, and the
+molecule needs nothing from Compose UI to keep recomposing.
+
 Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library is the ViewModel
 wiring around it, nothing more.
 
@@ -195,9 +200,11 @@ channel, which the harness doesn't read.
 ## Download
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.1.1")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.1")
 ```
+
+Requires minSdk 23.
 
 Working with a coding agent? The library's rules ship as a skill at
 `.claude/skills/molecule-viewmodel/SKILL.md`. The format works with Claude Code, Codex, Copilot,
