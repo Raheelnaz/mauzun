@@ -4,11 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.CoroutineScope
 
-/**
- * [LaunchedEffect] that runs [block] only when [a] is non-null, passing the value already
- * checked. Any change restarts the effect. A value turning null restarts it into a no-op,
- * cancelling in-flight work.
- */
+/** Runs [block] when [a] is non-null. A change to [a], including null, cancels the old block. */
 @Composable
 public fun <A : Any> LaunchedEffectNotNull(
     a: A?,
@@ -17,7 +13,7 @@ public fun <A : Any> LaunchedEffectNotNull(
     LaunchedEffect(a) { if (a != null) block(a) }
 }
 
-/** Two-value [LaunchedEffectNotNull]: [block] runs only when both values are non-null. */
+/** Runs [block] when [a] and [b] are both non-null. */
 @Composable
 public fun <A : Any, B : Any> LaunchedEffectNotNull(
     a: A?,
@@ -27,7 +23,7 @@ public fun <A : Any, B : Any> LaunchedEffectNotNull(
     LaunchedEffect(a, b) { if (a != null && b != null) block(a, b) }
 }
 
-/** Three-value [LaunchedEffectNotNull]: [block] runs only when all values are non-null. */
+/** Runs [block] when [a], [b], and [c] are all non-null. */
 @Composable
 public fun <A : Any, B : Any, C : Any> LaunchedEffectNotNull(
     a: A?,
