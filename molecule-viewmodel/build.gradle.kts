@@ -32,7 +32,6 @@ kotlin {
 }
 
 dependencies {
-    api(platform(libs.androidx.compose.bom))
     api(libs.androidx.compose.runtime)
     api(libs.kotlinx.coroutines.core)
     api(libs.androidx.lifecycle.viewmodel.ktx)
