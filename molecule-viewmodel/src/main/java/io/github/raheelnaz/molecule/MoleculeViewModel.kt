@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -74,6 +75,19 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     ) {
         val current by rememberUpdatedState(handler)
         LaunchedEffect(events) { events.collect { current(it) } }
+    }
+
+    /**
+     * [CollectEvents] for one event type: only events that are [T] reach [handler], already
+     * cast. Use one per type when a presenter cares about a few events and not the rest.
+     */
+    @Composable
+    protected inline fun <reified T : Event> CollectEventsOf(
+        events: Flow<Event>,
+        noinline handler: suspend CoroutineScope.(T) -> Unit,
+    ) {
+        val current by rememberUpdatedState(handler)
+        LaunchedEffect(events) { events.filterIsInstance<T>().collect { current(it) } }
     }
 
     /** Throws after 50 unconsumed events. A no-op once the ViewModel is cleared. */
