@@ -200,8 +200,8 @@ channel, which the harness doesn't read.
 ## Download
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.1")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.1")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.1.2")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.2")
 ```
 
 Requires minSdk 23.
