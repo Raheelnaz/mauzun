@@ -1,3 +1,9 @@
+public final class io/github/raheelnaz/molecule/LaunchedEffectNotNullKt {
+	public static final fun LaunchedEffectNotNull (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function5;Landroidx/compose/runtime/Composer;I)V
+	public static final fun LaunchedEffectNotNull (Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;I)V
+	public static final fun LaunchedEffectNotNull (Ljava/lang/Object;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+}
+
 public abstract interface class io/github/raheelnaz/molecule/MoleculePresenter {
 	public abstract fun getEffects ()Lkotlinx/coroutines/flow/Flow;
 	public abstract fun getState ()Lkotlinx/coroutines/flow/StateFlow;
