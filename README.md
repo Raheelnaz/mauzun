@@ -199,8 +199,10 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.1.0")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.0")
 ```
 
-Working with a coding agent? Copy `.claude/skills/molecule-viewmodel/` into your project and it
-picks up the library's rules.
+Working with a coding agent? The library's rules ship as a skill at
+`.claude/skills/molecule-viewmodel/SKILL.md`. The format works with Claude Code, Codex, Copilot,
+Cursor, and friends: copy the folder into your project's skills directory, or point your
+AGENTS.md at the file.
 
 ## License
 
