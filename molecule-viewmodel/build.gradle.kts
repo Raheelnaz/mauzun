@@ -41,6 +41,4 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
-    testImplementation(libs.junit)
-    testImplementation(libs.assertk)
 }
