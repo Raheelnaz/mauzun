@@ -11,8 +11,8 @@ as a `StateFlow`, one-off effects come out of a channel, and tests drive the pre
 Dependencies:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.1.1")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.1")
 ```
 
 ## Writing a ViewModel
@@ -40,7 +40,7 @@ Rules:
 
 - Collect `events` with `CollectEvents`, unconditionally. Never put a collector behind an `if`
   or inside a keyed `LaunchedEffect`: events sent while no collector is active are dropped.
-  Multiple collectors are fine; all of them receive every event.
+  Multiple collectors are fine. All of them receive every event.
 - Write snapshot state from event handlers and effects only, never in the composition body. An
   unconditional write in the body recomposes forever.
 - Call `emitEffect` from handlers and effects only, never in the composition body.
@@ -67,7 +67,7 @@ UiFactory(
 
 `UiFactory` collects state with the lifecycle and delivers effects while at least STARTED.
 Effects buffer while the screen is stopped. Pass `effectsMinActiveState = Lifecycle.State.RESUMED`
-to wait out navigation transitions. Collect `effects` from exactly one place; two concurrent
+to wait out navigation transitions. Collect `effects` from exactly one place. Two concurrent
 collectors silently split the stream.
 
 ## Testing
@@ -84,9 +84,9 @@ fun increment() = runTest {
 ```
 
 - Drive events with `sendEvent`, never `vm.onEvent`. `onEvent` feeds the production channel,
-  which the harness does not read; after 50 buffered sends it throws.
+  which the harness does not read. After 50 buffered sends it throws.
 - `sendEvent` is synchronous: everything the event triggers has run when it returns, so assert
-  on the next line. Work behind a `delay` or another dispatcher is the exception; step past it
+  on the next line. Work behind a `delay` or another dispatcher is the exception. Step past it
   with `awaitState()`.
 - `awaitState()` returns the next distinct model. Consecutive equal models are filtered, the
   same stream a `StateFlow` gives the UI.

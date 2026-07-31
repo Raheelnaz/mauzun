@@ -7,9 +7,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
-import app.cash.molecule.SnapshotNotifier
 import app.cash.molecule.launchMolecule
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,11 +39,14 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     final override val effects: Flow<Effect> = effectChannel.receiveAsFlow()
 
     // Immediate brings its own frame clock: a synchronous first composition so state always has
-    // a value, then recomposition when data changes rather than on display frames.
+    // a value, then recomposition when data changes rather than on display frames. Plain Main,
+    // not viewModelScope's Main.immediate: snapshot notifications sent inline from a write
+    // observer corrupt Compose UI invalidation (cashapp/molecule#465). Deferred dispatch sends
+    // them after the write phase, and the molecule stays self-sufficient without Compose UI.
     final override val state: StateFlow<Model> by lazy {
         viewModelScope.launchMolecule(
             mode = RecompositionMode.Immediate,
-            snapshotNotifier = SnapshotNotifier.External,
+            context = Dispatchers.Main,
         ) {
             present(events)
         }
