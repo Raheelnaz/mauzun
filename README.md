@@ -55,8 +55,8 @@ This library is one set of answers, for apps already built on `ViewModel`:
 - Events enter through a buffered channel and broadcast to every collector in the presenter.
   Events sent before the presenter is composing wait for it. Fifty unconsumed events crashes
   rather than dropping input. Events after the ViewModel is cleared are dropped.
-- Effects are a channel, not a SharedFlow. They buffer while the UI is stopped and deliver
-  exactly once.
+- Effects are a channel, not a SharedFlow. They buffer while the UI is stopped, and each
+  effect reaches a single consumer.
 - Tests run the same Immediate clock as production, so the presenter recomposes identically in
   both.
 
@@ -204,7 +204,17 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.1.2")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.2")
 ```
 
-Requires minSdk 23.
+Requires minSdk 23. Presenters are `@Composable`, so the module that subclasses
+`MoleculeViewModel` needs the Compose compiler plugin. Unit tests need
+`kotlinx-coroutines-test`, and Compose logs through `android.util.Log` on some paths, so:
+
+```kotlin
+android {
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+}
+```
 
 Working with a coding agent? The library's rules ship as a skill at
 `.claude/skills/molecule-viewmodel/SKILL.md`. The format works with Claude Code, Codex, Copilot,

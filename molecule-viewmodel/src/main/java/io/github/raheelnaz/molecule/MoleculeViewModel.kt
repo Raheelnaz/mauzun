@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.shareIn
  *
  * Implement [present]. Events sent with [onEvent] are buffered until the presenter collects
  * them, then broadcast to every collector inside it. Effects are buffered while the UI is not
- * collecting and delivered exactly once.
+ * collecting, and each effect reaches a single consumer.
  */
 public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> :
     ViewModel(), MoleculePresenter<Event, Model, Effect> {
