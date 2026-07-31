@@ -61,9 +61,9 @@ This library is one set of answers, for apps already built on `ViewModel`:
   both.
 
 The molecule runs on `Dispatchers.Main` rather than `viewModelScope`'s `Main.immediate`.
-Snapshot notifications sent inline from a write observer corrupt Compose UI's invalidation
-tracking (cashapp/molecule#465). Deferred dispatch sends them after the write phase, and the
-molecule needs nothing from Compose UI to keep recomposing.
+Snapshot notifications sent in the middle of a write break Compose UI's change tracking
+(cashapp/molecule#465). Plain Main sends them after the write finishes, and the molecule needs
+nothing from Compose UI to keep recomposing.
 
 Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library is the ViewModel
 wiring around it, nothing more.

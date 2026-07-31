@@ -41,7 +41,7 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 
 Rules:
 
-- Collect `events` with `CollectEvents`, unconditionally. Never put a collector behind an `if`
+- Collect `events` with `CollectEvents`, always. Never put a collector behind an `if`
   or inside a keyed `LaunchedEffect`: events sent while no collector is active are dropped.
   Multiple collectors are fine. All of them receive every event.
 - Write snapshot state from event handlers and effects only, never in the composition body. An
@@ -49,7 +49,7 @@ Rules:
 - Call `emitEffect` from handlers and effects only, never in the composition body.
 - In broad catches inside presenter effects (`catch (t: Throwable)`), rethrow
   `CancellationException` before mapping to an error state. A keyed effect restart cancels the
-  old coroutine at its suspension point, and swallowing that writes a spurious failure.
+  old coroutine where it suspended, and swallowing that shows an error that never happened.
 - `rememberSaveable` silently does nothing in a presenter (there is no saveable registry). Use
   `SavedStateHandle` for process-death state.
 - If a screen has no effects, use `Nothing` as the Effect type.
