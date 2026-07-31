@@ -39,10 +39,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     final override val effects: Flow<Effect> = effectChannel.receiveAsFlow()
 
     // Immediate brings its own frame clock: a synchronous first composition so state always has
-    // a value, then recomposition when data changes rather than on display frames. Plain Main,
-    // not viewModelScope's Main.immediate: snapshot notifications sent inline from a write
-    // observer corrupt Compose UI invalidation (cashapp/molecule#465). Deferred dispatch sends
-    // them after the write phase, and the molecule stays self-sufficient without Compose UI.
+    // a value, then recomposition when data changes rather than on display frames.
     final override val state: StateFlow<Model> by lazy {
         viewModelScope.launchMolecule(
             mode = RecompositionMode.Immediate,
