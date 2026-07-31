@@ -11,8 +11,8 @@ as a `StateFlow`, one-off effects come out of a channel, and tests drive the pre
 Dependencies:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.1.1")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.1")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.1.2")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.2")
 ```
 
 ## Writing a ViewModel
