@@ -198,6 +198,9 @@ testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.0")
 
 0.1.0 is not on Maven Central yet. Until then, build from source.
 
+Working with a coding agent? Copy `.claude/skills/molecule-viewmodel/` into your project and it
+picks up the library's rules.
+
 ## License
 
     MIT License
