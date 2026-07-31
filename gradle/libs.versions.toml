@@ -1,7 +1,7 @@
 [versions]
 agp = "8.11.1"
 kotlin = "2.2.10"
-composeBom = "2026.02.01"
+composeRuntime = "1.10.4"
 coroutines = "1.9.0"
 lifecycle = "2.8.7"
 molecule = "2.2.0"
@@ -12,8 +12,7 @@ mavenPublish = "0.30.0"
 binaryCompatibilityValidator = "0.17.0"
 
 [libraries]
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "composeRuntime" }
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
