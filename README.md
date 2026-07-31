@@ -1,5 +1,8 @@
 # molecule-viewmodel
 
+[![build](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml/badge.svg)](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/molecule-viewmodel)](https://central.sonatype.com/artifact/io.github.raheelnaz/molecule-viewmodel)
+
 Write a ViewModel's logic as a `@Composable` function.
 
 ```kotlin
@@ -195,8 +198,6 @@ channel, which the harness doesn't read.
 implementation("io.github.raheelnaz:molecule-viewmodel:0.1.0")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.1.0")
 ```
-
-0.1.0 is not on Maven Central yet. Until then, build from source.
 
 Working with a coding agent? Copy `.claude/skills/molecule-viewmodel/` into your project and it
 picks up the library's rules.
