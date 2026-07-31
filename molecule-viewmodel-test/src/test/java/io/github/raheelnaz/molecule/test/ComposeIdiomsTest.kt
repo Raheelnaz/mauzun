@@ -2,9 +2,13 @@ package io.github.raheelnaz.molecule.test
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -12,6 +16,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModelStore
 import assertk.assertThat
 import assertk.assertions.containsExactly
+import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import io.github.raheelnaz.molecule.MoleculeViewModel
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +72,51 @@ private class WatchingViewModel(
     }
 }
 
+private class DerivingViewModel(
+    private val compositions: MutableList<String>,
+) : MoleculeViewModel<Int, Boolean, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Boolean {
+        var count by remember { mutableIntStateOf(0) }
+        CollectEvents(events) { count = it }
+        val ready by remember { derivedStateOf { count >= 2 } }
+        SideEffect { compositions += "composed" }
+        return ready
+    }
+}
+
+private sealed interface LabelEvent
+private data class SetLabel(val value: String) : LabelEvent
+private data object Snap : LabelEvent
+
+private class UpdatedStateViewModel(
+    private val log: MutableList<String>,
+) : MoleculeViewModel<LabelEvent, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<LabelEvent>): Int {
+        var label by remember { mutableStateOf("a") }
+        val current by rememberUpdatedState(label)
+        CollectEvents(events) { if (it is SetLabel) label = it.value }
+        LaunchedEffect(Unit) {
+            log += "started"
+            events.collect { if (it is Snap) log += "snap:$current" }
+        }
+        return 0
+    }
+}
+
+private class SideEffectViewModel(
+    private val log: MutableList<String>,
+) : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        var n by remember { mutableIntStateOf(0) }
+        CollectEvents(events) { n = it }
+        SideEffect { log += "composed:$n" }
+        return n
+    }
+}
+
 /** Ordinary Compose effect APIs work inside presenters. These pin the ones beyond LaunchedEffect. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ComposeIdiomsTest {
@@ -115,6 +165,43 @@ class ComposeIdiomsTest {
             assertThat(awaitState()).isEqualTo(5)
             source.send(9)
             assertThat(awaitState()).isEqualTo(9)
+        }
+    }
+
+    @Test
+    fun `derivedStateOf skips recomposition when the result is unchanged`() = runTest {
+        val compositions = mutableListOf<String>()
+        DerivingViewModel(compositions).test {
+            assertThat(awaitState()).isEqualTo(false)
+            assertThat(compositions).hasSize(1)
+            sendEvent(1)
+            expectNoStateChanges()
+            assertThat(compositions).hasSize(1) // count changed, result did not: no recomposition
+            sendEvent(2)
+            assertThat(awaitState()).isEqualTo(true)
+            assertThat(compositions).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `rememberUpdatedState hands a long-lived effect the latest value without restarting it`() = runTest {
+        val log = mutableListOf<String>()
+        UpdatedStateViewModel(log).test {
+            assertThat(awaitState()).isEqualTo(0)
+            sendEvent(SetLabel("b"))
+            sendEvent(Snap)
+            assertThat(log).containsExactly("started", "snap:b")
+        }
+    }
+
+    @Test
+    fun `SideEffect runs after each composition that lands`() = runTest {
+        val log = mutableListOf<String>()
+        SideEffectViewModel(log).test {
+            assertThat(awaitState()).isEqualTo(0)
+            sendEvent(3)
+            assertThat(awaitState()).isEqualTo(3)
+            assertThat(log).containsExactly("composed:0", "composed:3")
         }
     }
 }
