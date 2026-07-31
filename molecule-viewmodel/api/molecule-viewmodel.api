@@ -1,0 +1,22 @@
+public abstract interface class io/github/raheelnaz/molecule/MoleculePresenter {
+	public abstract fun getEffects ()Lkotlinx/coroutines/flow/Flow;
+	public abstract fun getState ()Lkotlinx/coroutines/flow/StateFlow;
+	public abstract fun onEvent (Ljava/lang/Object;)V
+}
+
+public abstract class io/github/raheelnaz/molecule/MoleculeViewModel : androidx/lifecycle/ViewModel, io/github/raheelnaz/molecule/MoleculePresenter {
+	public static final field $stable I
+	public fun <init> ()V
+	protected final fun CollectEvents (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	protected final fun emitEffect (Ljava/lang/Object;)V
+	public final fun getEffects ()Lkotlinx/coroutines/flow/Flow;
+	public final fun getState ()Lkotlinx/coroutines/flow/StateFlow;
+	protected final fun onCleared ()V
+	public final fun onEvent (Ljava/lang/Object;)V
+	public abstract fun present (Lkotlinx/coroutines/flow/Flow;Landroidx/compose/runtime/Composer;I)Ljava/lang/Object;
+}
+
+public final class io/github/raheelnaz/molecule/UiFactoryKt {
+	public static final fun UiFactory (Lio/github/raheelnaz/molecule/MoleculePresenter;Lkotlin/jvm/functions/Function2;Landroidx/lifecycle/Lifecycle$State;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
+}
+
