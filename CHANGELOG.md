@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.3.0] - 2026-07-31
+
+- Add `CollectEventsOf`, which collects one event type from the presenter's event stream.
+- Lower the Compose runtime dependency to 1.9.1, the floor Molecule already sets.
+- Test the remaining production contracts: synchronous first state, typed collection through
+  the real channel, effect completion on clear, and effect overflow.
+
 ## [0.2.0] - 2026-07-31
 
 - Add `LaunchedEffectNotNull` overloads for one, two, and three nullable values.
