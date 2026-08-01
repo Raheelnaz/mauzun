@@ -71,6 +71,26 @@ private class EffectProdViewModel : MoleculeViewModel<Int, Int, String>() {
     }
 }
 
+private sealed interface ProdEvent
+private data class Inc(val by: Int) : ProdEvent
+private data object Skip : ProdEvent
+
+private class TypedProdViewModel : MoleculeViewModel<ProdEvent, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<ProdEvent>): Int {
+        var n by remember { mutableIntStateOf(0) }
+        CollectEventsOf<Inc>(events) { n += it.by }
+        return n
+    }
+}
+
+private class EffectFloodViewModel : MoleculeViewModel<Int, Int, String>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int = 0
+
+    fun flood(effect: String) = emitEffect(effect)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductionContractTest {
 
@@ -150,5 +170,51 @@ class ProductionContractTest {
         store.put("vm", vm)
         store.clear()
         repeat(100) { vm.onEvent(it) }
+    }
+
+    @Test
+    fun `the first model is available as soon as state is read`() = runTest(dispatcher) {
+        val vm = EchoProdViewModel()
+        assertThat(vm.state.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `CollectEventsOf filters the real event channel`() = runTest(dispatcher) {
+        val vm = TypedProdViewModel()
+        val state = vm.state
+        advanceUntilIdle()
+
+        vm.onEvent(Skip)
+        vm.onEvent(Inc(2))
+        vm.onEvent(Skip)
+        vm.onEvent(Inc(3))
+        advanceUntilIdle()
+
+        assertThat(state.value).isEqualTo(5)
+    }
+
+    @Test
+    fun `the effects flow completes when the ViewModel is cleared`() = runTest(dispatcher) {
+        val store = ViewModelStore()
+        val vm = EffectProdViewModel()
+        store.put("vm", vm)
+        vm.state
+        advanceUntilIdle()
+        vm.onEvent(1)
+        advanceUntilIdle()
+
+        store.clear()
+
+        vm.effects.test {
+            assertThat(awaitItem()).isEqualTo("e1")
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `the effect buffer throws on effect 51 when nothing collects`() {
+        val vm = EffectFloodViewModel()
+        repeat(50) { vm.flood("e$it") }
+        assertFailure { vm.flood("boom") }.isInstanceOf(IllegalStateException::class)
     }
 }
