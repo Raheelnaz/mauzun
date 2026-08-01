@@ -39,7 +39,7 @@ fun increment() = runTest {
 
 Tests run on the JVM. No Robolectric, no dispatcher setup.
 
-## Why this exists
+## Why
 
 [Molecule](https://github.com/cashapp/molecule) runs Compose without UI, so presenter logic can
 use `remember`, snapshot state, and `LaunchedEffect` in place of `combine`, `stateIn`, and
@@ -149,8 +149,8 @@ CollectEvents(events) { event -> ... }
 ```
 
 The collector lives as long as the presenter composition. Do not put it behind an `if` or use a
-keyed `LaunchedEffect` as an event collector; events sent while that collector is absent are
-lost. Multiple `CollectEvents` calls are supported and each receives every event.
+keyed `LaunchedEffect` as an event collector. Events sent while that collector is absent are
+lost. Multiple `CollectEvents` calls each receive every event.
 
 Change state from an event handler or effect, not directly in the composition body:
 
