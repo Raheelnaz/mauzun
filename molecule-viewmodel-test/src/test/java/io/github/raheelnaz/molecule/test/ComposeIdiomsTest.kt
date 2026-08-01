@@ -1,6 +1,7 @@
 package io.github.raheelnaz.molecule.test
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -23,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -117,6 +119,16 @@ private class SideEffectViewModel(
     }
 }
 
+private class CollectAsStateViewModel(
+    private val source: MutableStateFlow<Int>,
+) : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        val n by source.collectAsState(initial = -1)
+        return n
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class ComposeIdiomsTest {
 
@@ -201,6 +213,17 @@ class ComposeIdiomsTest {
             sendEvent(3)
             assertThat(awaitState()).isEqualTo(3)
             assertThat(log).containsExactly("composed:0", "composed:3")
+        }
+    }
+
+    @Test
+    fun `collectAsState with a different initial value keeps recomposing`() = runTest {
+        val source = MutableStateFlow(0)
+        CollectAsStateViewModel(source).test {
+            assertThat(awaitState()).isEqualTo(-1)
+            assertThat(awaitState()).isEqualTo(0)
+            source.value = 7
+            assertThat(awaitState()).isEqualTo(7)
         }
     }
 }
