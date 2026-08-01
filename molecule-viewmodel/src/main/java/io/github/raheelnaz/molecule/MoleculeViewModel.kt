@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.isActive
 
 /** A ViewModel backed by a Molecule presenter. Implement [present] to produce the screen model. */
 public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> :
@@ -34,6 +35,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
 
     // Immediate produces the first model synchronously and does not wait for display frames.
     final override val state: StateFlow<Model> by lazy {
+        check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
         viewModelScope.launchMolecule(
             mode = RecompositionMode.Immediate,
             context = Dispatchers.Main,

@@ -14,6 +14,7 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEqualTo
+import assertk.assertions.hasMessage
 import assertk.assertions.isInstanceOf
 import io.github.raheelnaz.molecule.MoleculeViewModel
 import kotlinx.coroutines.Dispatchers
@@ -96,16 +97,26 @@ private class EffectFloodViewModel : MoleculeViewModel<Int, Int, String>() {
 class ProductionContractTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
+    private val store = ViewModelStore()
+    private var stored = 0
+
+    private fun <T : MoleculeViewModel<*, *, *>> T.tracked(): T {
+        store.put("vm${stored++}", this)
+        return this
+    }
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        store.clear()
+        Dispatchers.resetMain()
+    }
 
     @Test
     fun `events sent before state starts are delivered`() = runTest(dispatcher) {
-        val vm = EchoProdViewModel()
+        val vm = EchoProdViewModel().tracked()
         vm.onEvent(41)
         vm.onEvent(42)
 
@@ -118,7 +129,7 @@ class ProductionContractTest {
     @Test
     fun `events broadcast to every collector on the production path`() = runTest(dispatcher) {
         val seen = mutableListOf<String>()
-        val vm = TwoCollectorProdViewModel(seen)
+        val vm = TwoCollectorProdViewModel(seen).tracked()
 
         vm.state
         advanceUntilIdle()
@@ -130,7 +141,7 @@ class ProductionContractTest {
 
     @Test
     fun `effects wait for a collector and keep their order`() = runTest(dispatcher) {
-        val vm = EffectProdViewModel()
+        val vm = EffectProdViewModel().tracked()
         vm.state
         advanceUntilIdle()
 
@@ -147,7 +158,7 @@ class ProductionContractTest {
     @Test
     fun `snapshotFlow observes presenter state on the production path`() = runTest(dispatcher) {
         val log = mutableListOf<String>()
-        val vm = WatchingProdViewModel(log)
+        val vm = WatchingProdViewModel(log).tracked()
 
         vm.state
         advanceUntilIdle()
@@ -174,14 +185,8 @@ class ProductionContractTest {
     }
 
     @Test
-    fun `the first model is available as soon as state is read`() = runTest(dispatcher) {
-        val vm = EchoProdViewModel()
-        assertThat(vm.state.value).isEqualTo(0)
-    }
-
-    @Test
     fun `CollectEventsOf filters the real event channel`() = runTest(dispatcher) {
-        val vm = TypedProdViewModel()
+        val vm = TypedProdViewModel().tracked()
         val state = vm.state
         advanceUntilIdle()
 
@@ -232,13 +237,14 @@ class ProductionContractTest {
                 val vm = TwoCollectorProdViewModel(seen)
                 store.put("vm", vm)
                 vm.onEvent(9)
-
-                vm.state
-                advanceUntilIdle()
-
-                assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
-                store.clear()
-                advanceUntilIdle()
+                try {
+                    vm.state
+                    advanceUntilIdle()
+                    assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
+                } finally {
+                    store.clear()
+                    advanceUntilIdle()
+                }
             }
         } finally {
             Dispatchers.setMain(dispatcher)
@@ -247,7 +253,7 @@ class ProductionContractTest {
 
     @Test
     fun `state has a value the moment the getter returns`() {
-        val vm = EchoProdViewModel()
+        val vm = EchoProdViewModel().tracked()
         assertThat(vm.state.value).isEqualTo(0)
     }
 
@@ -261,5 +267,16 @@ class ProductionContractTest {
             store.clear()
         }
         advanceUntilIdle()
+    }
+
+    @Test
+    fun `reading state for the first time after clear names the mistake`() {
+        val store = ViewModelStore()
+        val vm = EchoProdViewModel()
+        store.put("vm", vm)
+        store.clear()
+        assertFailure { vm.state }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("state was first read after the ViewModel was cleared")
     }
 }
