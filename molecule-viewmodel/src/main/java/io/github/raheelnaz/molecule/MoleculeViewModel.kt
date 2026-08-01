@@ -59,10 +59,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
         LaunchedEffect(events) { events.collect { current(it) } }
     }
 
-    /**
-     * [CollectEvents] for one event type: only events that are [T] reach [handler], already
-     * cast. Use one per type when a presenter cares about a few events and not the rest.
-     */
+    /** Collects events of type [T] for the lifetime of the presenter. */
     @Composable
     protected inline fun <reified T : Event> CollectEventsOf(
         events: Flow<Event>,
