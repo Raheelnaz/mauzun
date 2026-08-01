@@ -19,6 +19,7 @@ import io.github.raheelnaz.molecule.MoleculeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -216,5 +217,49 @@ class ProductionContractTest {
         val vm = EffectFloodViewModel()
         repeat(50) { vm.flood("e$it") }
         assertFailure { vm.flood("boom") }.isInstanceOf(IllegalStateException::class)
+    }
+
+    @Test
+    fun `events sent before startup reach every collector`() {
+        // Deferred dispatch like production Main: both collectors subscribe during the initial
+        // composition before the event pump runs.
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        try {
+            runTest(main) {
+                val seen = mutableListOf<String>()
+                val store = ViewModelStore()
+                val vm = TwoCollectorProdViewModel(seen)
+                store.put("vm", vm)
+                vm.onEvent(9)
+
+                vm.state
+                advanceUntilIdle()
+
+                assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
+                store.clear()
+                advanceUntilIdle()
+            }
+        } finally {
+            Dispatchers.setMain(dispatcher)
+        }
+    }
+
+    @Test
+    fun `state has a value the moment the getter returns`() {
+        val vm = EchoProdViewModel()
+        assertThat(vm.state.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `clearing immediately after starting state does not crash`() = runTest(dispatcher) {
+        repeat(20) {
+            val store = ViewModelStore()
+            val vm = EchoProdViewModel()
+            store.put("vm", vm)
+            vm.state
+            store.clear()
+        }
+        advanceUntilIdle()
     }
 }
