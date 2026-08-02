@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.3.1] - 2026-08-01
+
+- Throw a clear error when `state` is first read after the ViewModel is cleared. The failure
+  used to surface deep inside Molecule with nothing pointing at the cause. The startup race
+  itself is cashapp/molecule#760 and stays upstream.
+- Add regression tests for startup and collection races.
+- Create GitHub releases from tag pushes.
+
 ## [0.3.0] - 2026-07-31
 
 - Add `CollectEventsOf`, which collects one event type from the presenter's event stream.
