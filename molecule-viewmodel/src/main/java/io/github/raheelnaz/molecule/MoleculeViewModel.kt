@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
@@ -22,11 +24,15 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /** A ViewModel whose state is produced by a Molecule presenter. */
-public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> :
-    ViewModel(), MoleculePresenter<Event, Model, Effect> {
+public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any>(
+    savedStateHandle: SavedStateHandle?,
+) : ViewModel(), MoleculePresenter<Event, Model, Effect> {
+
+    public constructor() : this(null)
 
     private val eventChannel = Channel<Event>(capacity = 50)
     private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
+    internal val presenterSavedState = PresenterSavedState(savedStateHandle)
 
     // Keep the same downstream capacity as shareIn's default buffer.
     private val events = MutableSharedFlow<Event>(extraBufferCapacity = 64)
@@ -59,7 +65,9 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
                 mode = RecompositionMode.Immediate,
                 context = Dispatchers.Main,
             ) {
-                present(events)
+                withCompositionLocal(LocalSaveableStateRegistry provides presenterSavedState.registry) {
+                    present(events)
+                }
             }
             // Main queues the relay until every initial event collector has subscribed.
             presenterScope.launch(Dispatchers.Main) {

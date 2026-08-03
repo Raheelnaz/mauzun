@@ -13,7 +13,9 @@ binaryCompatibilityValidator = "0.18.1"
 
 [libraries]
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "composeRuntime" }
+androidx-compose-runtime-saveable = { group = "androidx.compose.runtime", name = "runtime-saveable", version.ref = "composeRuntime" }
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-savedstate = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-savedstate", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-testing = { group = "androidx.lifecycle", name = "lifecycle-runtime-testing", version.ref = "lifecycle" }
