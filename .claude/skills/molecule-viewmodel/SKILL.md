@@ -15,7 +15,7 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.3.1")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.3.1")
 ```
 
-Requires minSdk 23, Kotlin 2.1 or newer, and the Compose compiler plugin. Tests also need
+Requires minSdk 23, Kotlin 2.3 or newer, and the Compose compiler plugin. Tests also need
 `kotlinx-coroutines-test` and `testOptions { unitTests.isReturnDefaultValues = true }`.
 
 ## Writing a ViewModel
