@@ -9,7 +9,7 @@ turbine = "1.2.1"
 junit = "4.13.2"
 assertk = "0.28.1"
 mavenPublish = "0.37.0"
-binaryCompatibilityValidator = "0.17.0"
+binaryCompatibilityValidator = "0.18.1"
 
 [libraries]
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "composeRuntime" }
