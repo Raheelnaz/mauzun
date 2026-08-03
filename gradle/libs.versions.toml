@@ -8,7 +8,7 @@ molecule = "2.2.0"
 turbine = "1.2.1"
 junit = "4.13.2"
 assertk = "0.28.1"
-mavenPublish = "0.30.0"
+mavenPublish = "0.37.0"
 binaryCompatibilityValidator = "0.17.0"
 
 [libraries]
