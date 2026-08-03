@@ -5,12 +5,15 @@
 
 Write a ViewModel's logic as a `@Composable` function.
 
+The Android ViewModel plumbing around [Molecule](https://github.com/cashapp/molecule): events
+in, one `StateFlow` of models out, one-shot effects on the side, and a JVM test harness.
+
 ```kotlin
 class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEffect>() {
 
     @Composable
     override fun present(events: Flow<CounterEvent>): CounterState {
-        var count by remember { mutableStateOf(0) }
+        var count by remember { mutableIntStateOf(0) }
 
         CollectEvents(events) { event ->
             when (event) {
@@ -46,21 +49,29 @@ use `remember`, snapshot state, and `LaunchedEffect` in place of `combine`, `sta
 friends. It does not provide Android ViewModel integration or an event/effect API. I kept
 rebuilding that glue, so this library packages it:
 
-- The molecule starts lazily in `viewModelScope` with `RecompositionMode.Immediate`. Its first
-  model is available synchronously.
-- Events wait in a buffered channel until the presenter starts, then broadcast to every event
-  collector in it. The buffer throws on overflow instead of dropping an event.
-- Effects also use a buffered channel. They wait while the UI is stopped and go to one
-  collector.
-- The test artifact runs presenters with the same recomposition mode used in production.
+- The molecule starts lazily in `viewModelScope` with `RecompositionMode.Immediate`, which
+  makes the first model available synchronously, the moment `state` is read.
+- Events wait in a buffered channel until the presenter starts, then broadcast to every
+  collector. Overflow throws. I would rather crash than lose a click.
+- Effects are single-consumer and queue while the UI is stopped.
+- The test artifact runs presenters with the production recomposition mode.
 
 The molecule uses `Dispatchers.Main`, not `viewModelScope`'s `Main.immediate`. Deferring snapshot
 notifications until after the current write avoids the invalidation bug in
 [cashapp/molecule#465](https://github.com/cashapp/molecule/issues/465). No Compose UI frame clock
 is involved.
 
-Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library supplies the Android
-ViewModel integration.
+Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library is the ViewModel
+wiring around it.
+
+## Status
+
+Pre-1.0, so the API can still change between minor releases. `UiFactory` will probably get a
+better name before then. The changelog lists every break. `rememberSaveable` inside a presenter
+falls back to `remember` because the presenter has no saveable registry, so state that must
+survive process death belongs in a `SavedStateHandle`. A screen with no events or effects can
+pass `Nothing` for both types and still write its state with `remember` instead of `combine`
+and `stateIn`.
 
 ## Usage
 
@@ -152,10 +163,10 @@ The collector lives as long as the presenter composition. Do not put it behind a
 keyed `LaunchedEffect` as an event collector. Events sent while that collector is absent are
 lost. Multiple `CollectEvents` calls each receive every event.
 
-Change state from an event handler or effect, not directly in the composition body:
+Change state from an event handler or effect:
 
 ```kotlin
-var count by remember { mutableStateOf(0) }
+var count by remember { mutableIntStateOf(0) }
 count++                                  // recomposes forever
 CollectEvents(events) { count++ }        // fine
 ```
@@ -182,6 +193,19 @@ Anything the presenter emitted that the test didn't assert fails the test.
 
 Drive the presenter with `sendEvent`. Calling `vm.onEvent` in a test feeds the production
 channel, which the harness doesn't read.
+
+## Coding agents
+
+`.claude/skills/molecule-viewmodel/SKILL.md` teaches an agent this library, mostly the parts
+they get wrong: `CollectEvents` behind an `if`, state writes in the composition body, and
+`vm.onEvent` in tests where `sendEvent` belongs. No model has this API in its training data,
+so without the skill agents guess. Copy it into your own project:
+
+```
+mkdir -p .claude/skills/molecule-viewmodel
+curl -L -o .claude/skills/molecule-viewmodel/SKILL.md \
+  https://raw.githubusercontent.com/Raheelnaz/molecule-viewmodel/main/.claude/skills/molecule-viewmodel/SKILL.md
+```
 
 ## Download
 
