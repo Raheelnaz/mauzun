@@ -69,9 +69,11 @@ UiFactory(
 ```
 
 `UiFactory` collects state with the lifecycle and effects while at least STARTED. Effects stay
-buffered while the screen is stopped, and one caught mid-handoff by a lifecycle cancellation
-goes back in the buffer. Use `effectsMinActiveState = Lifecycle.State.RESUMED` to wait for
-navigation transitions. Collect `effects` from one place; concurrent collectors split the
+buffered while the screen is stopped. One caught mid-handoff by a lifecycle cancellation goes
+back in the buffer while there is room, behind anything buffered meanwhile. A handler that
+started counts as delivered, cancellation inside it does not retry the effect. Use
+`effectsMinActiveState = Lifecycle.State.RESUMED` to wait for navigation transitions, states
+below CREATED throw. Collect `effects` from one place; concurrent collectors split the
 channel.
 
 ## Testing

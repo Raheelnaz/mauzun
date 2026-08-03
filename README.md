@@ -53,8 +53,9 @@ rebuilding that glue, so this library packages it:
   makes the first model available synchronously, the moment `state` is read.
 - Events wait in a buffered channel until the presenter starts, then broadcast to every
   collector. Overflow throws. I would rather crash than lose a click.
-- Effects are single-consumer and queue while the UI is stopped. Nothing is dropped in a
-  lifecycle race, an undelivered effect goes back in the buffer.
+- Effects are single-consumer and queue while the UI is stopped. An effect that cancellation
+  catches before its handler runs goes back in the buffer while there is room. A handler that
+  started counts as delivered.
 - The test artifact runs presenters with the production recomposition mode.
 
 The molecule uses `Dispatchers.Main`, not `viewModelScope`'s `Main.immediate`. Deferring snapshot
@@ -79,7 +80,7 @@ and `stateIn`.
 `UiFactory` collects state with the lifecycle. It collects effects while the screen is at least
 STARTED, which leaves them buffered while the screen is stopped. Use
 `effectsMinActiveState = Lifecycle.State.RESUMED` if navigation effects must wait until a
-transition finishes.
+transition finishes. Collect `effects` from one place. Concurrent collectors compete for them.
 
 ```kotlin
 composable("counter") {
@@ -187,8 +188,9 @@ vm.test {
 }
 ```
 
-`sendEvent` is synchronous. When it returns, the presenter has handled the event. `awaitState`
-returns only distinct models, matching the production `StateFlow`.
+`sendEvent` is synchronous. When it returns, the presenter has handled the event. Work behind
+a `delay` or another dispatcher finishes on its own schedule. `awaitState` returns only
+distinct models, matching the production `StateFlow`.
 
 Anything the presenter emitted that the test didn't assert fails the test.
 

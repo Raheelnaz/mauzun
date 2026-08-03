@@ -20,6 +20,10 @@ public fun <Event : Any, Model : Any, Effect : Any> UiFactory(
     effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
 ) {
+    // repeatOnLifecycle rejects INITIALIZED at runtime, fail at the call site instead.
+    require(effectsMinActiveState.isAtLeast(Lifecycle.State.CREATED)) {
+        "effectsMinActiveState must be CREATED, STARTED, or RESUMED"
+    }
     val state by presenter.state.collectAsStateWithLifecycle()
     val currentOnEffect by rememberUpdatedState(onEffect)
     val lifecycleOwner = LocalLifecycleOwner.current

@@ -279,6 +279,70 @@ class ProductionContractTest {
     }
 
     @Test
+    fun `redelivery loses the effect when the buffer refilled behind it`() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        try {
+            runTest(main) {
+                val store = ViewModelStore()
+                val vm = EffectFloodViewModel()
+                store.put("vm", vm)
+                try {
+                    val delivered = mutableListOf<String>()
+                    val racer = launch { vm.effects.collect { delivered += it } }
+                    runCurrent()
+                    vm.flood("racy")
+                    repeat(50) { vm.flood("filler$it") }
+                    racer.cancel()
+                    runCurrent()
+
+                    assertThat(delivered).isEmpty()
+
+                    vm.effects.test {
+                        repeat(50) { assertThat(awaitItem()).isEqualTo("filler$it") }
+                    }
+                } finally {
+                    store.clear()
+                    advanceUntilIdle()
+                }
+            }
+        } finally {
+            Dispatchers.setMain(dispatcher)
+        }
+    }
+
+    @Test
+    fun `a redelivered effect lands behind one buffered meanwhile`() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        try {
+            runTest(main) {
+                val store = ViewModelStore()
+                val vm = EffectFloodViewModel()
+                store.put("vm", vm)
+                try {
+                    val racer = launch { vm.effects.collect { } }
+                    runCurrent()
+                    vm.flood("first")
+                    vm.flood("second")
+                    racer.cancel()
+                    runCurrent()
+
+                    vm.effects.test {
+                        assertThat(awaitItem()).isEqualTo("second")
+                        assertThat(awaitItem()).isEqualTo("first")
+                    }
+                } finally {
+                    store.clear()
+                    advanceUntilIdle()
+                }
+            }
+        } finally {
+            Dispatchers.setMain(dispatcher)
+        }
+    }
+
+    @Test
     fun `effects after onCleared are dropped instead of crashing`() {
         val store = ViewModelStore()
         val vm = EffectFloodViewModel()
