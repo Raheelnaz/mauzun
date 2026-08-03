@@ -211,8 +211,8 @@ curl -L -o .claude/skills/molecule-viewmodel/SKILL.md \
 ## Download
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.3.1")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.3.1")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.4.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.4.0")
 ```
 
 Requires minSdk 23 and Kotlin 2.3 or newer. The module that subclasses `MoleculeViewModel` needs

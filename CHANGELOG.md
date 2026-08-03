@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.4.0] - 2026-08-03
+
+- Put an effect back in the buffer when a lifecycle cancellation catches it mid-handoff.
+  Delivery used to lose that effect.
+- Build with Kotlin 2.4.10. Consumers now need Kotlin 2.3 or newer.
+- Update coroutines to 1.11.0 and turbine to 1.2.1.
+
 ## [0.3.1] - 2026-08-01
 
 - Throw a clear error when `state` is first read after the ViewModel is cleared. The failure
