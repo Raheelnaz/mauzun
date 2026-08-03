@@ -10,6 +10,9 @@ permissions:
   contents: read
   checks: write
 
+env:
+  GRADLE_OPTS: "-Dkotlin.incremental=false -Dorg.gradle.logging.stacktrace=full"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version-file: .github/workflows/.java-version
       - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew build
 
