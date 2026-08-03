@@ -13,17 +13,21 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.hasMessage
 import assertk.assertions.isInstanceOf
 import io.github.raheelnaz.molecule.MoleculeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -156,6 +160,29 @@ class ProductionContractTest {
     }
 
     @Test
+    fun `effects buffered when a collector dies reach the next collector`() = runTest(dispatcher) {
+        val vm = EffectFloodViewModel().tracked()
+        vm.flood("first")
+        vm.flood("second")
+
+        val delivered = mutableListOf<String>()
+        val slowCollector = launch {
+            vm.effects.collect {
+                delivered += it
+                delay(1_000)
+            }
+        }
+        slowCollector.cancel()
+        slowCollector.join()
+
+        assertThat(delivered).containsExactly("first")
+
+        vm.effects.test {
+            assertThat(awaitItem()).isEqualTo("second")
+        }
+    }
+
+    @Test
     fun `snapshotFlow observes presenter state on the production path`() = runTest(dispatcher) {
         val log = mutableListOf<String>()
         val vm = WatchingProdViewModel(log).tracked()
@@ -215,6 +242,49 @@ class ProductionContractTest {
             assertThat(awaitItem()).isEqualTo("e1")
             awaitComplete()
         }
+    }
+
+    @Test
+    fun `an effect caught mid-handoff by cancellation returns to the buffer`() {
+        // Deferred dispatch like production Main: the send resumes the suspended collector, and
+        // the cancellation wins the race before that resumption runs.
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        try {
+            runTest(main) {
+                val store = ViewModelStore()
+                val vm = EffectFloodViewModel()
+                store.put("vm", vm)
+                try {
+                    val delivered = mutableListOf<String>()
+                    val racer = launch { vm.effects.collect { delivered += it } }
+                    runCurrent()
+                    vm.flood("racy")
+                    racer.cancel()
+                    runCurrent()
+
+                    assertThat(delivered).isEmpty()
+
+                    vm.effects.test {
+                        assertThat(awaitItem()).isEqualTo("racy")
+                    }
+                } finally {
+                    store.clear()
+                    advanceUntilIdle()
+                }
+            }
+        } finally {
+            Dispatchers.setMain(dispatcher)
+        }
+    }
+
+    @Test
+    fun `effects after onCleared are dropped instead of crashing`() {
+        val store = ViewModelStore()
+        val vm = EffectFloodViewModel()
+        store.put("vm", vm)
+        store.clear()
+        repeat(100) { vm.flood("late$it") }
     }
 
     @Test

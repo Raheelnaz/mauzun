@@ -24,7 +24,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     ViewModel(), MoleculePresenter<Event, Model, Effect> {
 
     private val eventChannel = Channel<Event>(capacity = 50)
-    private val effectChannel = Channel<Effect>(capacity = 50)
+    private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
 
     // Lazy sharing keeps early events in the channel and lets tests supply a different stream.
     private val events: Flow<Event> by lazy {
@@ -76,7 +76,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
         eventChannel.trySendOrThrow(event, "Event")
     }
 
-    /** Sends a one-off effect to the UI. Call from an event handler or effect. */
+    /** Throws after 50 unconsumed effects. A no-op once the ViewModel is cleared. */
     protected fun emitEffect(effect: Effect) {
         effectChannel.trySendOrThrow(effect, "Effect")
     }
@@ -94,4 +94,11 @@ private fun <T : Any> Channel<T>.trySendOrThrow(value: T, streamName: String) {
     if (result.isClosed) return
     // Do not include the payload in the error; events and effects may contain user data.
     check(result.isSuccess) { "$streamName buffer overflow (latest: ${value::class.simpleName})" }
+}
+
+// A cancelled receive puts the effect back instead of dropping it.
+private fun <T> redeliveringChannel(capacity: Int): Channel<T> {
+    lateinit var channel: Channel<T>
+    channel = Channel(capacity) { channel.trySend(it) }
+    return channel
 }
