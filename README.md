@@ -214,7 +214,7 @@ implementation("io.github.raheelnaz:molecule-viewmodel:0.3.1")
 testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.3.1")
 ```
 
-Requires minSdk 23 and Kotlin 2.1 or newer. The module that subclasses `MoleculeViewModel` needs
+Requires minSdk 23 and Kotlin 2.3 or newer. The module that subclasses `MoleculeViewModel` needs
 the Compose compiler plugin. Unit tests need `kotlinx-coroutines-test`. Compose also calls
 `android.util.Log` on some JVM test paths, so enable default Android return values:
 
