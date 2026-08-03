@@ -6,6 +6,11 @@
       "description": "The runtime dependency stays at the floor Molecule sets, consumers pick their own Compose version.",
       "matchPackageNames": ["androidx.compose.runtime:runtime"],
       "enabled": false
+    },
+    {
+      "description": "Gradle 9.6 drops the internal API AGP 8 uses. Stay below it until the AGP 9 built-in Kotlin migration.",
+      "matchPackageNames": ["gradle"],
+      "allowedVersions": "<9.6"
     }
   ]
 }
