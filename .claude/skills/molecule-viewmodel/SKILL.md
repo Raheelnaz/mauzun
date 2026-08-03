@@ -25,7 +25,7 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 
     @Composable
     override fun present(events: Flow<CounterEvent>): CounterState {
-        var count by remember { mutableStateOf(0) }
+        var count by remember { mutableIntStateOf(0) }
 
         CollectEvents(events) { event ->
             when (event) {
