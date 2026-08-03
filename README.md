@@ -53,7 +53,8 @@ rebuilding that glue, so this library packages it:
   makes the first model available synchronously, the moment `state` is read.
 - Events wait in a buffered channel until the presenter starts, then broadcast to every
   collector. Overflow throws. I would rather crash than lose a click.
-- Effects are single-consumer and queue while the UI is stopped.
+- Effects are single-consumer and queue while the UI is stopped. Nothing is dropped in a
+  lifecycle race, an undelivered effect goes back in the buffer.
 - The test artifact runs presenters with the production recomposition mode.
 
 The molecule uses `Dispatchers.Main`, not `viewModelScope`'s `Main.immediate`. Deferring snapshot
