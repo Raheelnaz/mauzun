@@ -199,10 +199,8 @@ channel, which the harness doesn't read.
 
 ## Coding agents
 
-`.claude/skills/molecule-viewmodel/SKILL.md` teaches an agent this library, mostly the parts
-they get wrong: `CollectEvents` behind an `if`, state writes in the composition body, and
-`vm.onEvent` in tests where `sendEvent` belongs. No model has this API in its training data,
-so without the skill agents guess. Copy it into your own project:
+`.claude/skills/molecule-viewmodel/SKILL.md` is a skill for this library. Copy it into your
+project:
 
 ```
 mkdir -p .claude/skills/molecule-viewmodel
