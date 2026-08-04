@@ -24,15 +24,18 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /** A ViewModel whose state is produced by a Molecule presenter. */
-public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any>(
-    savedStateHandle: SavedStateHandle?,
+public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any>
+private constructor(
+    private val presenterSavedState: PresenterSavedState?,
 ) : ViewModel(), MoleculePresenter<Event, Model, Effect> {
 
-    public constructor() : this(null)
+    public constructor() : this(presenterSavedState = null)
+
+    public constructor(savedStateHandle: SavedStateHandle) :
+        this(PresenterSavedState(savedStateHandle))
 
     private val eventChannel = Channel<Event>(capacity = 50)
     private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
-    internal val presenterSavedState = PresenterSavedState(savedStateHandle)
 
     // Keep the same downstream capacity as shareIn's default buffer.
     private val events = MutableSharedFlow<Event>(extraBufferCapacity = 64)
@@ -65,8 +68,13 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any>(
                 mode = RecompositionMode.Immediate,
                 context = Dispatchers.Main,
             ) {
-                withCompositionLocal(LocalSaveableStateRegistry provides presenterSavedState.registry) {
+                val savedState = presenterSavedState
+                if (savedState == null) {
                     present(events)
+                } else {
+                    withCompositionLocal(LocalSaveableStateRegistry provides savedState.registry) {
+                        present(events)
+                    }
                 }
             }
             // Main queues the relay until every initial event collector has subscribed.

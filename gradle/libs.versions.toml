@@ -8,6 +8,7 @@ molecule = "2.2.0"
 turbine = "1.2.1"
 junit = "4.13.2"
 assertk = "0.28.1"
+robolectric = "4.16.1"
 mavenPublish = "0.37.0"
 binaryCompatibilityValidator = "0.18.1"
 
@@ -25,6 +26,7 @@ molecule-runtime = { group = "app.cash.molecule", name = "molecule-runtime", ver
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 assertk = { group = "com.willowtreeapps.assertk", name = "assertk", version.ref = "assertk" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-library = { id = "com.android.library", version.ref = "agp" }

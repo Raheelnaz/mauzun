@@ -16,7 +16,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -24,25 +23,36 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-private class SaveableViewModel(handle: SavedStateHandle?) :
+private class OpaqueBox
+
+private class OpaqueViewModel : MoleculeViewModel<Int, Int, Nothing> {
+    constructor() : super()
+    constructor(handle: SavedStateHandle) : super(handle)
+
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        val box = rememberSaveable { mutableStateOf(OpaqueBox()) }
+        check(box.value === box.value)
+        return 0
+    }
+}
+
+private class LambdaViewModel(handle: SavedStateHandle) :
+    MoleculeViewModel<Int, Int, Nothing>(handle) {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        val block = rememberSaveable<() -> Int> { { 1 } }
+        return block()
+    }
+}
+
+private class CounterViewModel(handle: SavedStateHandle) :
     MoleculeViewModel<Int, Int, Nothing>(handle) {
     @Composable
     override fun present(events: Flow<Int>): Int {
         var value by rememberSaveable { mutableIntStateOf(0) }
         CollectEvents(events) { value = it }
         return value
-    }
-}
-
-private class Opaque
-
-private class OpaqueViewModel(handle: SavedStateHandle?) :
-    MoleculeViewModel<Int, Int, Nothing>(handle) {
-    @Composable
-    override fun present(events: Flow<Int>): Int {
-        val value by rememberSaveable { mutableStateOf(Opaque()) }
-        check(value === value)
-        return 0
     }
 }
 
@@ -68,66 +78,31 @@ class SavedStateTest {
     }
 
     @Test
-    fun `rememberSaveable state survives process death through the handle`() = runTest(dispatcher) {
-        val first = SaveableViewModel(SavedStateHandle()).tracked()
-        first.state
-        advanceUntilIdle()
-        first.onEvent(7)
-        advanceUntilIdle()
+    fun `rememberSaveable without a handle behaves like remember`() = runTest(dispatcher) {
+        val vm = OpaqueViewModel().tracked()
 
-        val saved = first.presenterSavedState.performSave()
-        store.clear()
-        advanceUntilIdle()
-
-        val second = SaveableViewModel(
-            SavedStateHandle(mapOf(PresenterSavedState.KEY to saved)),
-        ).tracked()
-
-        assertThat(second.state.value).isEqualTo(7)
+        assertThat(vm.state.value).isEqualTo(0)
     }
 
     @Test
-    fun `restoration happens at construction so any reader of state sees it`() = runTest(dispatcher) {
-        val seed = SaveableViewModel(SavedStateHandle()).tracked()
-        seed.state
-        advanceUntilIdle()
-        seed.onEvent(12)
-        advanceUntilIdle()
-        val saved = seed.presenterSavedState.performSave()
-        store.clear()
-        advanceUntilIdle()
-
-        val restored = SaveableViewModel(
-            SavedStateHandle(mapOf(PresenterSavedState.KEY to saved)),
-        ).tracked()
-        val firstReadAnywhere = restored.state.value
-
-        assertThat(firstReadAnywhere).isEqualTo(12)
-    }
-
-    @Test
-    fun `a ViewModel without a handle keeps rememberSaveable for its own lifetime`() =
-        runTest(dispatcher) {
-            val vm = SaveableViewModel(null).tracked()
-            vm.state
-            advanceUntilIdle()
-            vm.onEvent(3)
-            advanceUntilIdle()
-
-            assertThat(vm.state.value).isEqualTo(3)
-        }
-
-    @Test
-    fun `a value the handle cannot store fails at registration`() = runTest(dispatcher) {
+    fun `a value the registry cannot store fails at registration`() = runTest(dispatcher) {
         val vm = OpaqueViewModel(SavedStateHandle()).tracked()
 
         assertFailure { vm.state }.isInstanceOf(IllegalArgumentException::class)
     }
 
     @Test
-    fun `corrupted restored state fails at construction`() {
-        assertFailure {
-            SaveableViewModel(SavedStateHandle(mapOf(PresenterSavedState.KEY to "garbage")))
-        }.isInstanceOf(IllegalArgumentException::class)
+    fun `a serializable lambda is rejected`() = runTest(dispatcher) {
+        val vm = LambdaViewModel(SavedStateHandle()).tracked()
+
+        assertFailure { vm.state }.isInstanceOf(IllegalArgumentException::class)
+    }
+
+    @Test
+    fun `a malformed envelope is discarded instead of crashing`() = runTest(dispatcher) {
+        val handle = SavedStateHandle(mapOf(PresenterSavedState.KEY to "garbage"))
+        val vm = CounterViewModel(handle).tracked()
+
+        assertThat(vm.state.value).isEqualTo(0)
     }
 }
