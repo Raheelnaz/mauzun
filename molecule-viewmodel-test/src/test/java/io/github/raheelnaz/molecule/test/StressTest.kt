@@ -127,6 +127,8 @@ class StressTest {
             pool.shutdown()
         }
 
+        // Drain anything a worker left scheduled instead of trusting unconfined timing.
+        dispatcher.scheduler.advanceUntilIdle()
         assertThat(vm.seen.get()).isEqualTo(threads * rounds * perRound)
     }
 
