@@ -106,8 +106,9 @@ android {
 ### Models
 
 The molecule starts when `state` is first read. `RecompositionMode.Immediate` produces the first
-model during that read, so `state.value` is available as soon as the getter returns. Later models
-are conflated by equality, like any other `StateFlow`.
+model during that read, so `state.value` is available as soon as the getter returns. That first
+composition runs on whichever thread reads `state` first, so make the first read on Main. Later
+models are conflated by equality, like any other `StateFlow`.
 
 ### Events
 
@@ -128,8 +129,10 @@ CollectEventsOf<CounterEvent.Increment>(events) {
 }
 ```
 
-Both input and effect queues have a capacity of 50. Sending to a full queue throws with the
-ViewModel and payload types in the message. Sending after the ViewModel is cleared does nothing.
+Both input and effect queues have a capacity of 50. A running presenter drains events into a
+64 slot broadcast buffer, so more than 50 events can be waiting before a send throws. Sending
+to a full queue throws with the ViewModel and payload types in the message. Sending after the
+ViewModel is cleared does nothing.
 
 ### Effects
 

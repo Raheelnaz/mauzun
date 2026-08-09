@@ -33,10 +33,10 @@ kotlin {
 
 dependencies {
     api(project(":molecule-viewmodel"))
-    api(libs.turbine)
     api(libs.kotlinx.coroutines.core)
 
     implementation(libs.molecule.runtime)
+    implementation(libs.turbine)
 
     testImplementation(libs.junit)
     testImplementation(libs.assertk)
