@@ -1,7 +1,8 @@
 # Change Log
 
-## Unreleased
+## [0.5.0] - 2026-08-09
 
+- Rename `UiFactory` to `PresenterHost`.
 - Deliver events queued before presenter startup to every active event collector.
 - Stop the event pump when the presenter fails, and clean up a recomposer left by a failed first
   composition.
