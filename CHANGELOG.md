@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.5.1] - 2026-08-09
+
+- Move Turbine to an implementation dependency of molecule-viewmodel-test. Tests that use
+  Turbine directly now declare their own dependency.
+- Cover PresenterHost with lifecycle tests and the runtime with stress tests.
+- Document the delivery guarantees in one table, with the first-read threading rule and the
+  bounded overflow contract.
+
 ## [0.5.0] - 2026-08-09
 
 - Rename `UiFactory` to `PresenterHost`.

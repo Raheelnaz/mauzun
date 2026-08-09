@@ -77,8 +77,8 @@ UI ──────────────────▶ present() ───
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.5.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.5.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.5.1")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.5.1")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
