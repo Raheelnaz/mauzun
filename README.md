@@ -141,9 +141,26 @@ least `STARTED`, so effects remain queued while the screen is stopped.
 
 An effect is considered delivered when `onEffect` starts. If lifecycle cancellation happens after
 the channel receives an effect but before `onEffect` starts, the effect returns to the queue when
-there is room.
+there is room, behind anything buffered meanwhile.
+
+Effects are not a durable queue. Work that must happen exactly once, a payment or a write,
+belongs in the presenter, not in an effect.
 
 Collect effects from one place. Concurrent collectors divide the stream between them.
+
+### Guarantees
+
+| Behavior | Guarantee |
+| --- | --- |
+| Events before startup | Kept, delivered to every collector once the presenter starts |
+| Events while running | Broadcast to every active collector, never replayed |
+| Event overflow | Throws after 50 queued, plus 64 in flight once running |
+| Effects | One collector, buffered while the screen is stopped |
+| Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
+| Effect overflow | Throws after 50 unconsumed |
+| First read of `state` | Composes synchronously on the calling thread |
+| After the ViewModel clears | Sends are dropped, the effects flow completes |
+| A handler that throws | Cancellation ends that collector, anything else ends the presenter |
 
 ## Writing presenters
 
