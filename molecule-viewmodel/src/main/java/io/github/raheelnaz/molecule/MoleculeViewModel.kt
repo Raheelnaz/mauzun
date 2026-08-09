@@ -49,7 +49,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
         startPresenter()
     }
 
-    // A presenter failure must stop the event pump too. The cancel on a failed start also
+    // A presenter failure must stop the event relay too. The cancel on a failed start also
     // covers a Recomposer leak fixed upstream in cashapp/molecule#761.
     private fun startPresenter(): StateFlow<Model> {
         val presenterJob = Job(viewModelScope.coroutineContext.job)
@@ -61,7 +61,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
             ) {
                 present(events)
             }
-            // Main queues the pump until every initial event collector has subscribed.
+            // Main queues the relay until every initial event collector has subscribed.
             presenterScope.launch(Dispatchers.Main) {
                 for (event in eventChannel) events.emit(event)
             }

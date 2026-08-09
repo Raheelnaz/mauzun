@@ -8,7 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelStore
 import assertk.assertThat
+import assertk.assertions.hasMessage
 import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import io.github.raheelnaz.molecule.MoleculeViewModel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -17,6 +20,7 @@ import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -72,6 +76,14 @@ private class DiesOnStartViewModel : MoleculeViewModel<Int, Int, Nothing>() {
     override fun present(events: Flow<Int>): Int = error("dead on arrival")
 }
 
+private class StallingViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        CollectEvents(events) { awaitCancellation() }
+        return 0
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class StressTest {
 
@@ -101,16 +113,15 @@ class StressTest {
         try {
             repeat(rounds) { round ->
                 val start = CountDownLatch(1)
-                val done = CountDownLatch(threads)
-                repeat(threads) { t ->
-                    pool.execute {
+                val workers = (0 until threads).map { t ->
+                    pool.submit {
                         start.await()
                         repeat(perRound) { i -> vm.onEvent(round + t + i) }
-                        done.countDown()
                     }
                 }
                 start.countDown()
-                done.await()
+                // get() rethrows a worker's failure instead of hanging the test on a latch.
+                workers.forEach { it.get() }
             }
         } finally {
             pool.shutdown()
@@ -203,6 +214,31 @@ class StressTest {
         } finally {
             Dispatchers.setMain(dispatcher)
         }
+    }
+
+    @Test
+    fun `a stalled handler jams the pipeline at a known depth`() = runTest(dispatcher) {
+        val vm = StallingViewModel()
+        store.put("stalled", vm)
+        vm.state
+        advanceUntilIdle()
+
+        var accepted = 0
+        val outcome = runCatching {
+            while (true) {
+                vm.onEvent(accepted)
+                accepted += 1
+                advanceUntilIdle()
+            }
+        }
+
+        // One event in the stuck handler, one in the relay, 64 buffered, 50 queued.
+        assertThat(accepted).isEqualTo(116)
+        val root = generateSequence(outcome.exceptionOrNull()) { it.cause }.lastOrNull()
+        assertThat(root)
+            .isNotNull()
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("Event buffer overflow in StallingViewModel (latest: Int)")
     }
 
     @Test
