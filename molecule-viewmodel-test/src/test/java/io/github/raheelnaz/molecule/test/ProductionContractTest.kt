@@ -438,7 +438,7 @@ class ProductionContractTest {
 
     @Test
     fun `events sent before startup reach every collector`() {
-        // Defer Main so both collectors subscribe before the event pump runs.
+        // Defer Main so both collectors subscribe before the event relay runs.
         val main = StandardTestDispatcher()
         Dispatchers.setMain(main)
         try {
@@ -557,7 +557,7 @@ class ProductionContractTest {
         }
 
     @Test
-    fun `a presenter crash stops the event pump instead of draining silently`() {
+    fun `a presenter crash stops the event relay instead of draining silently`() {
         val outcome = runCatching {
             runTest(dispatcher) {
                 val vm = CrashOnEventProdViewModel().tracked()
