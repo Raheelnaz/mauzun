@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModelStore
 import app.cash.turbine.test
@@ -17,9 +18,14 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.hasMessage
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import java.util.concurrent.Executors
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
@@ -77,6 +83,28 @@ private class EffectProdViewModel : MoleculeViewModel<Int, Int, String>() {
     }
 }
 
+// Android's main looper: Dispatchers.Main posts, Main.immediate runs inline. Test dispatchers
+// collapse the two and hide anything that depends on the difference.
+private class LooperMainDispatcher : MainCoroutineDispatcher() {
+    private val queue = ArrayDeque<Runnable>()
+
+    override val immediate: MainCoroutineDispatcher = object : MainCoroutineDispatcher() {
+        override val immediate: MainCoroutineDispatcher get() = this
+        override fun isDispatchNeeded(context: CoroutineContext): Boolean = false
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            queue += block
+        }
+    }
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        queue += block
+    }
+
+    fun drain() {
+        while (queue.isNotEmpty()) queue.removeFirst().run()
+    }
+}
+
 private sealed interface ProdEvent
 private data class Inc(val by: Int) : ProdEvent
 private data object Skip : ProdEvent
@@ -87,6 +115,54 @@ private class TypedProdViewModel : MoleculeViewModel<ProdEvent, Int, Nothing>() 
         var n by remember { mutableIntStateOf(0) }
         CollectEventsOf<Inc>(events) { n += it.by }
         return n
+    }
+}
+
+private class ThrowOnFirstCompositionViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    var compositions = 0
+
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        compositions++
+        error("boom in present")
+    }
+}
+
+private class RecursiveReadViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        // The misuse under test: lint flags it, the guard has to survive it at runtime.
+        @Suppress("StateFlowValueCalledInComposition")
+        state.value
+        return 0
+    }
+}
+
+private class CancellingHandlerProdViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        var n by remember { mutableIntStateOf(0) }
+        CollectEvents(events) { if (it == 2) throw CancellationException("spurious") }
+        CollectEvents(events) { n = it }
+        return n
+    }
+}
+
+private class CrashOnEventProdViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        CollectEvents(events) { error("boom in handler") }
+        return 0
+    }
+}
+
+private class ThreadRecordingViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    val threads = mutableListOf<String>()
+
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        threads += Thread.currentThread().name
+        return 0
     }
 }
 
@@ -199,7 +275,9 @@ class ProductionContractTest {
     fun `the event buffer throws on the 51st unconsumed event`() {
         val vm = EchoProdViewModel()
         repeat(50) { vm.onEvent(it) }
-        assertFailure { vm.onEvent(50) }.isInstanceOf(IllegalStateException::class)
+        assertFailure { vm.onEvent(50) }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("Event buffer overflow in EchoProdViewModel (latest: Int)")
     }
 
     @Test
@@ -355,7 +433,9 @@ class ProductionContractTest {
     fun `the effect buffer throws on effect 51 when nothing collects`() {
         val vm = EffectFloodViewModel()
         repeat(50) { vm.flood("e$it") }
-        assertFailure { vm.flood("boom") }.isInstanceOf(IllegalStateException::class)
+        assertFailure { vm.flood("boom") }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("Effect buffer overflow in EffectFloodViewModel (latest: String)")
     }
 
     @Test
@@ -386,6 +466,30 @@ class ProductionContractTest {
     }
 
     @Test
+    fun `an early event reaches every collector when Main defers and Main-immediate does not`() {
+        val looper = LooperMainDispatcher()
+        Dispatchers.setMain(looper)
+        try {
+            val seen = mutableListOf<String>()
+            val store = ViewModelStore()
+            val vm = TwoCollectorProdViewModel(seen)
+            store.put("vm", vm)
+            try {
+                vm.onEvent(9)
+                vm.state
+                looper.drain()
+
+                assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
+            } finally {
+                store.clear()
+                looper.drain()
+            }
+        } finally {
+            Dispatchers.setMain(dispatcher)
+        }
+    }
+
+    @Test
     fun `state has a value the moment the getter returns`() {
         val vm = EchoProdViewModel().tracked()
         assertThat(vm.state.value).isEqualTo(0)
@@ -401,6 +505,99 @@ class ProductionContractTest {
             store.clear()
         }
         advanceUntilIdle()
+    }
+
+    @Test
+    fun `a presenter that throws during its first composition composes once`() {
+        val vm = ThrowOnFirstCompositionViewModel().tracked()
+
+        assertFailure { vm.state }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("boom in present")
+
+        val secondRead = runCatching { vm.state }.exceptionOrNull()
+        assertThat(secondRead)
+            .isNotNull()
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("the presenter already failed to start")
+        assertThat(secondRead?.cause).isNotNull().hasMessage("boom in present")
+
+        assertThat(vm.compositions).isEqualTo(1)
+    }
+
+    @Test
+    fun `a state read inside present fails instead of composing twice`() {
+        val vm = RecursiveReadViewModel().tracked()
+
+        assertFailure { vm.state }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("the presenter is already starting")
+    }
+
+    @Test
+    fun `a failed start does not leave a recomposer running`() {
+        val running = Recomposer.runningRecomposers.value.size
+        val vm = ThrowOnFirstCompositionViewModel().tracked()
+
+        assertFailure { vm.state }
+
+        assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(running)
+    }
+
+    @Test
+    fun `a handler cancellation takes only that collector on the production path`() =
+        runTest(dispatcher) {
+            val vm = CancellingHandlerProdViewModel().tracked()
+            val state = vm.state
+            advanceUntilIdle()
+
+            vm.onEvent(1)
+            vm.onEvent(2)
+            vm.onEvent(3)
+            advanceUntilIdle()
+
+            assertThat(state.value).isEqualTo(3)
+        }
+
+    @Test
+    fun `a presenter crash stops the event pump instead of draining silently`() {
+        val outcome = runCatching {
+            runTest(dispatcher) {
+                val vm = CrashOnEventProdViewModel().tracked()
+                vm.state
+                advanceUntilIdle()
+                vm.onEvent(1)
+                advanceUntilIdle()
+
+                // The pump died with the presenter, so the queue fills instead of draining.
+                repeat(50) { vm.onEvent(it) }
+                assertFailure { vm.onEvent(99) }
+                    .isInstanceOf(IllegalStateException::class)
+                    .hasMessage("Event buffer overflow in CrashOnEventProdViewModel (latest: Int)")
+            }
+        }
+
+        // The crash still surfaces: nothing catches it, so runTest reports it as uncaught.
+        val root = generateSequence(outcome.exceptionOrNull()) { it.cause }.lastOrNull()
+        assertThat(root)
+            .isNotNull()
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("boom in handler")
+    }
+
+    @Test
+    fun `the first composition runs on the thread that first reads state`() {
+        // launchMolecule calls setContent inline, so whoever reads state first composes it, even
+        // off main like this reader thread. Recomposition afterwards is on Dispatchers.Main.
+        val vm = ThreadRecordingViewModel().tracked()
+        val reader = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "reader") }
+        try {
+            reader.submit { vm.state }.get()
+
+            assertThat(vm.threads).containsExactly("reader")
+        } finally {
+            reader.shutdown()
+        }
     }
 
     @Test
