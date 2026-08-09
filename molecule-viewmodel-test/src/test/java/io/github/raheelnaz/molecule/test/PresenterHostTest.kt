@@ -99,6 +99,52 @@ class PresenterHostTest {
     }
 
     @Test
+    fun `models wait while the lifecycle is stopped`() = runTest(dispatcher) {
+        val presenter = FakePresenter()
+        val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
+        val models = mutableListOf<Int>()
+
+        host(owner) {
+            PresenterHost(presenter, onEffect = {}) { state, _ -> models += state }
+        }
+
+        assertThat(models).containsExactly(0)
+
+        owner.currentState = Lifecycle.State.CREATED
+        runCurrent()
+        presenter.state.value = 1
+        runCurrent()
+        assertThat(models).containsExactly(0)
+
+        owner.currentState = Lifecycle.State.STARTED
+        runCurrent()
+        assertThat(models).containsExactly(0, 1)
+    }
+
+    @Test
+    fun `RESUMED as the minimum holds effects until resumed`() = runTest(dispatcher) {
+        val presenter = FakePresenter()
+        val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
+        val handled = mutableListOf<String>()
+
+        host(owner) {
+            PresenterHost(
+                presenter,
+                onEffect = { handled += it },
+                effectsMinActiveState = Lifecycle.State.RESUMED,
+            ) { _, _ -> }
+        }
+
+        presenter.emitEffect("early")
+        runCurrent()
+        assertThat(handled).isEmpty()
+
+        owner.currentState = Lifecycle.State.RESUMED
+        runCurrent()
+        assertThat(handled).containsExactly("early")
+    }
+
+    @Test
     fun `effects are not handled below STARTED`() = runTest(dispatcher) {
         val presenter = FakePresenter()
         val owner = TestLifecycleOwner(Lifecycle.State.CREATED, dispatcher)
