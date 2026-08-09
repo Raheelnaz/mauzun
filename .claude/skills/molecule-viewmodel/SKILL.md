@@ -47,9 +47,15 @@ Rules:
 - Write snapshot state from event handlers and effects only, never in the composition body. An
   unconditional write in the body recomposes forever.
 - Call `emitEffect` from handlers and effects only, never in the composition body.
-- In broad catches inside presenter effects (`catch (t: Throwable)`), rethrow
-  `CancellationException` before mapping to an error state. A keyed effect restart cancels the
-  old coroutine where it suspended, and swallowing that shows an error that never happened.
+- In broad catches inside presenter effects (`catch (t: Throwable)`), start with
+  `currentCoroutineContext().ensureActive()`. It rethrows when the coroutine really was
+  cancelled, so a keyed effect restart does not show an error that never happened, and it falls
+  through for `TimeoutCancellationException`, which is a `CancellationException` that means the
+  work failed. Rethrowing every `CancellationException` loses the collector on the first timeout.
+- A `CollectEvents` handler that throws stops collecting and nothing restarts it. A
+  `CancellationException` takes that collector alone and is silent. Anything else cancels the
+  composition, freezes the model at its last value, and reaches the uncaught handler. Catch what
+  you expect and put it in the model.
 - `rememberSaveable` falls back to `remember` because the presenter has no saveable registry.
   Use `SavedStateHandle` for process-death state.
 - If a screen has no effects, use `Nothing` as the Effect type.
