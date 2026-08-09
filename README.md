@@ -106,8 +106,9 @@ android {
 ### Models
 
 The molecule starts when `state` is first read. `RecompositionMode.Immediate` produces the first
-model during that read, so `state.value` is available as soon as the getter returns. Later models
-are conflated by equality, like any other `StateFlow`.
+model during that read, so `state.value` is available as soon as the getter returns. That first
+composition runs on whichever thread reads `state` first, so make the first read on Main. Later
+models are conflated by equality, like any other `StateFlow`.
 
 ### Events
 
@@ -128,8 +129,10 @@ CollectEventsOf<CounterEvent.Increment>(events) {
 }
 ```
 
-Both input and effect queues have a capacity of 50. Sending to a full queue throws with the
-ViewModel and payload types in the message. Sending after the ViewModel is cleared does nothing.
+Both input and effect queues have a capacity of 50. A running presenter drains events into a
+64 slot broadcast buffer, so a stalled handler does not throw at 50: the pipeline absorbs 116
+events and the 117th send throws. Sending to a full queue throws with the ViewModel and
+payload types in the message. Sending after the ViewModel is cleared does nothing.
 
 ### Effects
 
@@ -138,9 +141,26 @@ least `STARTED`, so effects remain queued while the screen is stopped.
 
 An effect is considered delivered when `onEffect` starts. If lifecycle cancellation happens after
 the channel receives an effect but before `onEffect` starts, the effect returns to the queue when
-there is room.
+there is room, behind anything buffered meanwhile.
+
+Effects are not a durable queue. Work that must happen exactly once, a payment or a write,
+belongs in the presenter, not in an effect.
 
 Collect effects from one place. Concurrent collectors divide the stream between them.
+
+### Guarantees
+
+| Behavior | Guarantee |
+| --- | --- |
+| Events before startup | Kept, delivered to every collector once the presenter starts |
+| Events while running | Broadcast to every active collector, never replayed |
+| Event overflow | Throws on the 51st queued send before startup, the 117th behind a stalled handler |
+| Effects | One collector, buffered while the screen is stopped |
+| Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
+| Effect overflow | Throws when the 50 slot queue is full |
+| First read of `state` | Composes synchronously on the calling thread |
+| After the ViewModel clears | Sends are dropped, the effects flow completes |
+| A handler that throws | Cancellation ends that collector, anything else ends the presenter |
 
 ## Writing presenters
 
