@@ -41,4 +41,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.assertk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.lifecycle.runtime.compose)
+    testImplementation(libs.androidx.lifecycle.runtime.testing)
 }

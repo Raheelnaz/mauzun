@@ -4,3 +4,5 @@
 build/
 local.properties
 .kotlin
+.claude/
+AGENTS.md
