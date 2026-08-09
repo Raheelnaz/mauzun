@@ -83,8 +83,7 @@ private class EffectProdViewModel : MoleculeViewModel<Int, Int, String>() {
     }
 }
 
-// Android's main looper: Dispatchers.Main posts, Main.immediate runs inline. Test dispatchers
-// collapse the two and hide anything that depends on the difference.
+// Standard test dispatchers do not model Android's Main/Main.immediate distinction.
 private class LooperMainDispatcher : MainCoroutineDispatcher() {
     private val queue = ArrayDeque<Runnable>()
 
@@ -324,8 +323,7 @@ class ProductionContractTest {
 
     @Test
     fun `an effect caught mid-handoff by cancellation returns to the buffer`() {
-        // Deferred dispatch like production Main: the send resumes the suspended collector, and
-        // the cancellation wins the race before that resumption runs.
+        // Delay collector resumption so cancellation wins the handoff race.
         val main = StandardTestDispatcher()
         Dispatchers.setMain(main)
         try {
@@ -440,8 +438,7 @@ class ProductionContractTest {
 
     @Test
     fun `events sent before startup reach every collector`() {
-        // Deferred dispatch like production Main: both collectors subscribe during the initial
-        // composition before the event pump runs.
+        // Defer Main so both collectors subscribe before the event pump runs.
         val main = StandardTestDispatcher()
         Dispatchers.setMain(main)
         try {
@@ -569,7 +566,6 @@ class ProductionContractTest {
                 vm.onEvent(1)
                 advanceUntilIdle()
 
-                // The pump died with the presenter, so the queue fills instead of draining.
                 repeat(50) { vm.onEvent(it) }
                 assertFailure { vm.onEvent(99) }
                     .isInstanceOf(IllegalStateException::class)
@@ -577,7 +573,6 @@ class ProductionContractTest {
             }
         }
 
-        // The crash still surfaces: nothing catches it, so runTest reports it as uncaught.
         val root = generateSequence(outcome.exceptionOrNull()) { it.cause }.lastOrNull()
         assertThat(root)
             .isNotNull()
@@ -587,8 +582,7 @@ class ProductionContractTest {
 
     @Test
     fun `the first composition runs on the thread that first reads state`() {
-        // launchMolecule calls setContent inline, so whoever reads state first composes it, even
-        // off main like this reader thread. Recomposition afterwards is on Dispatchers.Main.
+        // The initial composition runs in the state getter's call frame.
         val vm = ThreadRecordingViewModel().tracked()
         val reader = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "reader") }
         try {
