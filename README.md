@@ -3,10 +3,16 @@
 [![build](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml/badge.svg)](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/molecule-viewmodel)](https://central.sonatype.com/artifact/io.github.raheelnaz/molecule-viewmodel)
 
-Write a ViewModel's logic as a `@Composable` function.
+Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
 
-The Android ViewModel plumbing around [Molecule](https://github.com/cashapp/molecule): events
-in, one `StateFlow` of models out, one-shot effects on the side, and a JVM test harness.
+`MoleculeViewModel` runs a composable presenter in `viewModelScope`, exposes its models as a
+`StateFlow`, and provides channels for UI events and one-time effects. The test artifact runs the
+same presenter directly on the JVM.
+
+Inside the presenter, use `remember`, `collectAsState`, and Compose effects. Outside it, the screen
+sees an ordinary ViewModel.
+
+## Quick start
 
 ```kotlin
 class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEffect>() {
@@ -27,108 +33,176 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 }
 ```
 
+Render it from Compose:
+
+```kotlin
+val viewModel: CounterViewModel = hiltViewModel()
+
+UiFactory(
+    presenter = viewModel,
+    onEffect = { effect ->
+        when (effect) {
+            is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
+        }
+    },
+) { state, onEvent ->
+    CounterScreen(state, onEvent)
+}
+```
+
+Test the presenter without starting Android or replacing `Dispatchers.Main`:
+
 ```kotlin
 @Test
 fun increment() = runTest {
     CounterViewModel().test {
         assertThat(awaitState()).isEqualTo(CounterState(0))
+
         sendEvent(CounterEvent.Increment)
         assertThat(awaitState()).isEqualTo(CounterState(1))
+
         sendEvent(CounterEvent.Share)
         assertThat(awaitEffect()).isEqualTo(CounterEffect.OpenShareSheet(1))
     }
 }
 ```
 
-Tests run on the JVM. No Robolectric, no dispatcher setup.
-
-## Why
-
-[Molecule](https://github.com/cashapp/molecule) runs Compose without UI, so presenter logic can
-use `remember`, snapshot state, and `LaunchedEffect` in place of `combine`, `stateIn`, and
-friends. It does not provide Android ViewModel integration or an event/effect API. I kept
-rebuilding that glue, so this library packages it:
-
-- The molecule starts lazily in `viewModelScope` with `RecompositionMode.Immediate`, which
-  makes the first model available synchronously, the moment `state` is read.
-- Events wait in a buffered channel until the presenter starts, then broadcast to every
-  collector. Overflow throws. I would rather crash than lose a click.
-- Effects are single-consumer and queue while the UI is stopped. An effect that cancellation
-  catches before its handler runs goes back in the buffer while there is room. A handler that
-  started counts as delivered.
-- The test artifact runs presenters with the production recomposition mode.
-
-The molecule uses `Dispatchers.Main`, not `viewModelScope`'s `Main.immediate`. Deferring snapshot
-notifications until after the current write avoids the invalidation bug in
-[cashapp/molecule#465](https://github.com/cashapp/molecule/issues/465). No Compose UI frame clock
-is involved.
-
-Molecule is [Jake Wharton](https://jakewharton.com/)'s work. This library is the ViewModel
-wiring around it.
-
-## Status
-
-Pre-1.0, so the API can still change between minor releases. `UiFactory` will probably get a
-better name before then. The changelog lists every break. `rememberSaveable` inside a presenter
-falls back to `remember` because the presenter has no saveable registry, so state that must
-survive process death belongs in a `SavedStateHandle`. A screen with no events or effects can
-pass `Nothing` for both types and still write its state with `remember` instead of `combine`
-and `stateIn`.
-
-## Usage
-
-`UiFactory` collects state with the lifecycle. It collects effects while the screen is at least
-STARTED, which leaves them buffered while the screen is stopped. Use
-`effectsMinActiveState = Lifecycle.State.RESUMED` if navigation effects must wait until a
-transition finishes. Collect `effects` from one place. Concurrent collectors compete for them.
+## Installation
 
 ```kotlin
-composable("counter") {
-    val vm: CounterViewModel = hiltViewModel()
-    UiFactory(
-        presenter = vm,
-        onEffect = { effect ->
-            when (effect) {
-                is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
-            }
-        },
-    ) { state, onEvent ->
-        CounterScreen(state, onEvent)
+implementation("io.github.raheelnaz:molecule-viewmodel:0.4.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.4.0")
+```
+
+The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
+module that subclasses `MoleculeViewModel`.
+
+Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test
+paths, so enable default Android return values:
+
+```kotlin
+android {
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 ```
 
-With Navigation 3, include the ViewModelStore decorator so each back-stack entry gets its own
-ViewModel:
+## Models, events, and effects
+
+| Type | Direction | Purpose |
+| --- | --- | --- |
+| Model | Presenter to UI | Everything the screen needs to render |
+| Event | UI to presenter | User input such as a tap or retry |
+| Effect | Presenter to UI | One-time work such as navigation or a snackbar |
+
+### Models
+
+The molecule starts when `state` is first read. `RecompositionMode.Immediate` produces the first
+model during that read, so `state.value` is available as soon as the getter returns. Later models
+are conflated by equality, like any other `StateFlow`.
+
+### Events
+
+Events sent before the presenter starts wait in the input queue. Once the presenter is running,
+events are broadcast to every active collector and are not replayed to collectors added later.
+
+Register event collectors unconditionally:
 
 ```kotlin
-NavDisplay(
-    backStack = backStack,
-    onBack = { backStack.removeLastOrNull() },
-    entryDecorators = listOf(
-        rememberSaveableStateHolderNavEntryDecorator(),
-        rememberViewModelStoreNavEntryDecorator(),
-    ),
-    entryProvider = entryProvider {
-        entry<CounterKey> {
-            val vm: CounterViewModel = hiltViewModel()
-            UiFactory(
-                presenter = vm,
-                onEffect = { effect ->
-                    when (effect) {
-                        is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
-                    }
-                },
-            ) { state, onEvent ->
-                CounterScreen(state, onEvent)
-            }
-        }
-    },
-)
+CollectEvents(events) { event -> handleEvent(event) }
 ```
 
-Hilt is optional. `MoleculeViewModel` is a plain `ViewModel`. For a screen that takes an
-argument, assisted injection works the usual way:
+Use `CollectEventsOf` when a handler only accepts one event type:
+
+```kotlin
+CollectEventsOf<CounterEvent.Increment>(events) {
+    count++
+}
+```
+
+Both input and effect queues have a capacity of 50. Sending to a full queue throws with the
+ViewModel and payload types in the message. Sending after the ViewModel is cleared does nothing.
+
+### Effects
+
+Effects are delivered to one collector. `UiFactory` collects them while the UI lifecycle is at
+least `STARTED`, so effects remain queued while the screen is stopped.
+
+An effect is considered delivered when `onEffect` starts. If lifecycle cancellation happens after
+the channel receives an effect but before `onEffect` starts, the effect returns to the queue when
+there is room.
+
+Collect effects from one place. Concurrent collectors divide the stream between them.
+
+## Writing presenters
+
+Presenter logic uses the same `remember`, `collectAsState`, and Compose effect APIs as UI code. A
+few rules keep that state predictable:
+
+- Change snapshot state from an event handler or Compose effect. Writing it unconditionally in
+  the composition body causes an endless recomposition loop.
+- Call `emitEffect` from an event handler or Compose effect, not from the composition body.
+- Keep `CollectEvents` and `CollectEventsOf` out of conditionals. Events are lost while a collector
+  is absent.
+- Use `Nothing` when a screen has no events or effects.
+
+If a broad catch handles failures inside a presenter coroutine, check for real cancellation first:
+
+```kotlin
+try {
+    repository.refresh()
+} catch (failure: Throwable) {
+    currentCoroutineContext().ensureActive()
+    error = failure.toUiError()
+}
+```
+
+`ensureActive()` rethrows when the presenter coroutine was cancelled. It does not rethrow a
+`TimeoutCancellationException` caught outside its `withTimeout` block, because the surrounding
+event collector is still active.
+
+An uncaught `CancellationException` stops only that event collector. Any other uncaught exception
+stops the presenter and reaches the uncaught exception handler.
+
+## UI lifecycle
+
+`UiFactory` collects models with `collectAsStateWithLifecycle`. Effects are collected with
+`repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
+
+Set `effectsMinActiveState = Lifecycle.State.RESUMED` when an effect must wait until a navigation
+transition finishes.
+
+`UiFactory` controls collection in the UI. It does not pause the presenter itself; the molecule
+runs until the ViewModel is cleared.
+
+## Testing
+
+`test` calls the composable presenter directly. Use a new ViewModel for each test.
+
+```kotlin
+viewModel.test {
+    awaitState()            // Wait for the next distinct model.
+    sendEvent(event)        // Send an event and finish immediate presenter work.
+    awaitEffect()           // Wait for the next effect.
+    expectNoStateChanges()  // Fail if a model is ready now.
+    expectNoEffects()       // Fail if an effect is ready now.
+    skipStates(2)           // Skip two distinct models.
+    awaitFailure()          // Wait for a terminal presenter failure.
+}
+```
+
+`sendEvent` is synchronous for work that stays on the current dispatcher. Work behind a `delay` or
+another dispatcher still finishes asynchronously.
+
+The harness fails when the block returns with an unconsumed model or effect. Drive it with
+`sendEvent`; calling `viewModel.onEvent` writes to the production queue, which the harness does not
+read.
+
+## Hilt
+
+Hilt is optional. Add `@HiltViewModel` to the concrete class. A screen that takes an argument
+uses an assisted factory:
 
 ```kotlin
 @HiltViewModel(assistedFactory = ProductViewModel.Factory::class)
@@ -148,84 +222,39 @@ class ProductViewModel @AssistedInject constructor(
 ```
 
 ```kotlin
-val vm = hiltViewModel<ProductViewModel, ProductViewModel.Factory>(
+val viewModel = hiltViewModel<ProductViewModel, ProductViewModel.Factory>(
     creationCallback = { factory -> factory.create(productId) },
 )
 ```
 
-## Writing presenters
+## Navigation 3
 
-Use `CollectEvents` for event handling:
-
-```kotlin
-CollectEvents(events) { event -> ... }
-```
-
-The collector lives as long as the presenter composition. Do not put it behind an `if` or use a
-keyed `LaunchedEffect` as an event collector. Events sent while that collector is absent are
-lost. Multiple `CollectEvents` calls each receive every event.
-
-Change state from an event handler or effect:
+Include the ViewModelStore decorator so each back-stack entry owns its ViewModel:
 
 ```kotlin
-var count by remember { mutableIntStateOf(0) }
-count++                                  // recomposes forever
-CollectEvents(events) { count++ }        // fine
+entryDecorators = listOf(
+    rememberSaveableStateHolderNavEntryDecorator(),
+    rememberViewModelStoreNavEntryDecorator(),
+)
 ```
 
-## Testing
+The library does not define a navigation API. Navigation can stay in the UI or be handled as an
+effect, depending on the application.
 
-Everything happens inside `test { }`:
+## Implementation notes
 
-```kotlin
-vm.test {
-    sendEvent(event)        // deliver an event and everything it triggers
-    awaitState()            // the next distinct model
-    awaitEffect()           // the next effect
-    expectNoStateChanges()  // assert the model didn't change
-    expectNoEffects()       // assert nothing fired
-    skipStates(2)           // jump past states you don't care about
-}
-```
+The molecule runs on `Dispatchers.Main`, not `Main.immediate`, to avoid the invalidation problem
+tracked in [cashapp/molecule#465](https://github.com/cashapp/molecule/issues/465). It does not use a
+Compose UI frame clock.
 
-`sendEvent` is synchronous. When it returns, the presenter has handled the event. Work behind
-a `delay` or another dispatcher finishes on its own schedule. `awaitState` returns only
-distinct models, matching the production `StateFlow`.
+`rememberSaveable` falls back to `remember` because the presenter has no saveable state registry.
+Use `SavedStateHandle` for state that must survive process death.
 
-Anything the presenter emitted that the test didn't assert fails the test.
+The project is pre-1.0. Minor releases may change the public API; see [CHANGELOG.md](CHANGELOG.md)
+before upgrading.
 
-Drive the presenter with `sendEvent`. Calling `vm.onEvent` in a test feeds the production
-channel, which the harness doesn't read.
-
-## Coding agents
-
-`.claude/skills/molecule-viewmodel/SKILL.md` is a skill for this library. Copy it into your
-project:
-
-```
-mkdir -p .claude/skills/molecule-viewmodel
-curl -L -o .claude/skills/molecule-viewmodel/SKILL.md \
-  https://raw.githubusercontent.com/Raheelnaz/molecule-viewmodel/main/.claude/skills/molecule-viewmodel/SKILL.md
-```
-
-## Download
-
-```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.4.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.4.0")
-```
-
-Requires minSdk 23 and Kotlin 2.3 or newer. The module that subclasses `MoleculeViewModel` needs
-the Compose compiler plugin. Unit tests need `kotlinx-coroutines-test`. Compose also calls
-`android.util.Log` on some JVM test paths, so enable default Android return values:
-
-```kotlin
-android {
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-}
-```
+Molecule is maintained by [Cash App](https://github.com/cashapp/molecule). This project provides
+the Android ViewModel and testing integration around it.
 
 ## License
 

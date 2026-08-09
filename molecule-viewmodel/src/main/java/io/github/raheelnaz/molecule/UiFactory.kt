@@ -10,8 +10,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 
 /**
- * Collects [presenter] state with the lifecycle and handles effects while the lifecycle is at
- * least [effectsMinActiveState].
+ * Renders [content] from [presenter] and handles effects while the lifecycle is at least
+ * [effectsMinActiveState].
  */
 @Composable
 public fun <Event : Any, Model : Any, Effect : Any> UiFactory(
@@ -20,7 +20,6 @@ public fun <Event : Any, Model : Any, Effect : Any> UiFactory(
     effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
 ) {
-    // repeatOnLifecycle rejects INITIALIZED at runtime, fail at the call site instead.
     require(effectsMinActiveState.isAtLeast(Lifecycle.State.CREATED)) {
         "effectsMinActiveState must be CREATED, STARTED, or RESUMED"
     }

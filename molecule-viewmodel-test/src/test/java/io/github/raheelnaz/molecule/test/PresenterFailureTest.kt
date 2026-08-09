@@ -24,8 +24,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 
-// thrower dies on event 2. writer drives the model, so the model says whether the rest of the
-// presenter survived.
 private class TwoHandlerViewModel(private val boom: () -> Nothing) :
     MoleculeViewModel<Int, Int, Nothing>() {
     val thrower = mutableListOf<Int>()
@@ -121,7 +119,6 @@ class PresenterFailureTest {
             sendEvent(2)
             scope.advanceUntilIdle()
 
-            // withTimeout throws TimeoutCancellationException, so the first timeout ends it.
             expectNoStateChanges()
         }
     }

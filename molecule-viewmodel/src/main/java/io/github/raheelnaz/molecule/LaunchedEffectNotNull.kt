@@ -13,7 +13,7 @@ public fun <A : Any> LaunchedEffectNotNull(
     LaunchedEffect(a) { if (a != null) block(a) }
 }
 
-/** Runs [block] when [a] and [b] are both non-null. */
+/** Runs [block] when [a] and [b] are non-null. Changing either value cancels the old block. */
 @Composable
 public fun <A : Any, B : Any> LaunchedEffectNotNull(
     a: A?,
@@ -23,7 +23,7 @@ public fun <A : Any, B : Any> LaunchedEffectNotNull(
     LaunchedEffect(a, b) { if (a != null && b != null) block(a, b) }
 }
 
-/** Runs [block] when [a], [b], and [c] are all non-null. */
+/** Runs [block] when all values are non-null. Changing any value cancels the old block. */
 @Composable
 public fun <A : Any, B : Any, C : Any> LaunchedEffectNotNull(
     a: A?,
