@@ -1,5 +1,14 @@
 # Change Log
 
+## Unreleased
+
+- Deliver events queued before presenter startup to every active event collector.
+- Stop the event pump when the presenter fails, and clean up a recomposer left by a failed first
+  composition.
+- Preserve the original startup failure as the cause of later `state` access errors.
+- Add `awaitFailure` to the test harness and cover the remaining harness contracts.
+- Include ViewModel and payload types in queue overflow messages without logging payload values.
+
 ## [0.4.0] - 2026-08-03
 
 - Put an effect back in the buffer when a lifecycle cancellation catches it mid-handoff.

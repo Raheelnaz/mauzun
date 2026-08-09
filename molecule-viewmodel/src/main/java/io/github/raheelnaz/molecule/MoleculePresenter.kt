@@ -3,14 +3,15 @@ package io.github.raheelnaz.molecule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/** State, effects, and events exposed to UI code. */
+/** The model, events, and effects used by a screen. */
 public interface MoleculePresenter<Event : Any, Model : Any, Effect : Any> {
 
+    /** The latest model to render. */
     public val state: StateFlow<Model>
 
-    /** One-off effects. Concurrent collectors split this stream. */
+    /** One-off work for the UI. Each effect is delivered to one collector. */
     public val effects: Flow<Effect>
 
-    /** Safe to call from any thread. */
+    /** Sends an event to the presenter. Safe to call from any thread. */
     public fun onEvent(event: Event)
 }
