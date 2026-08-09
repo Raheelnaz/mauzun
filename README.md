@@ -121,7 +121,7 @@ Register event collectors unconditionally:
 CollectEvents(events) { event -> handleEvent(event) }
 ```
 
-Use `CollectEventsOf` when a handler only accepts one event type:
+Use `CollectEventsOf` when a block only accepts one event type:
 
 ```kotlin
 CollectEventsOf<CounterEvent.Increment>(events) {
@@ -129,10 +129,11 @@ CollectEventsOf<CounterEvent.Increment>(events) {
 }
 ```
 
-Both input and effect queues have a capacity of 50. A running presenter drains events into a
-64 slot broadcast buffer, so a stalled handler does not throw at 50: the pipeline absorbs 116
-events and the 117th send throws. Sending to a full queue throws with the ViewModel and
-payload types in the message. Sending after the ViewModel is cleared does nothing.
+Both input and effect queues have a capacity of 50. A running presenter drains events into an
+internal buffer, so a stuck `CollectEvents` block moves the throw past the 51st send, but
+delivery stays bounded: a backed up pipeline throws instead of suspending or silently
+dropping. Sending to a full queue throws with the ViewModel and payload types in the message.
+Sending after the ViewModel is cleared does nothing.
 
 ### Effects
 
@@ -154,22 +155,22 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | --- | --- |
 | Events before startup | Kept, delivered to every collector once the presenter starts |
 | Events while running | Broadcast to every active collector, never replayed |
-| Event overflow | Throws on the 51st queued send before startup, the 117th behind a stalled handler |
+| Event overflow | Throws on the 51st queued send before startup, and stays bounded once running |
 | Effects | One collector, buffered while the screen is stopped |
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
 | Effect overflow | Throws when the 50 slot queue is full |
 | First read of `state` | Composes synchronously on the calling thread |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
-| A handler that throws | Cancellation ends that collector, anything else ends the presenter |
+| A `CollectEvents` block that throws | Cancellation ends that collector, anything else ends the presenter |
 
 ## Writing presenters
 
 Presenter logic uses the same `remember`, `collectAsState`, and Compose effect APIs as UI code. A
 few rules keep that state predictable:
 
-- Change snapshot state from an event handler or Compose effect. Writing it unconditionally in
+- Change snapshot state from a `CollectEvents` block or Compose effect. Writing it unconditionally in
   the composition body causes an endless recomposition loop.
-- Call `emitEffect` from an event handler or Compose effect, not from the composition body.
+- Call `emitEffect` from a `CollectEvents` block or Compose effect, not from the composition body.
 - Keep `CollectEvents` and `CollectEventsOf` out of conditionals. Events are lost while a collector
   is absent.
 - Use `Nothing` when a screen has no events or effects.
