@@ -73,7 +73,7 @@ presenter and reaches the uncaught exception handler.
 ```kotlin
 val viewModel: CounterViewModel = hiltViewModel()
 
-UiFactory(
+PresenterHost(
     presenter = viewModel,
     onEffect = ::handleEffect,
 ) { state, onEvent ->
@@ -81,7 +81,7 @@ UiFactory(
 }
 ```
 
-`UiFactory` collects models with the lifecycle and collects effects while the lifecycle is at least
+`PresenterHost` collects models with the lifecycle and collects effects while the lifecycle is at least
 `STARTED`. Set `effectsMinActiveState` to `RESUMED` when effects must wait for navigation
 transitions. Values below `CREATED` are rejected.
 

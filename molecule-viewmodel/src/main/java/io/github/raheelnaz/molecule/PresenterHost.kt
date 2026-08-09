@@ -14,7 +14,7 @@ import androidx.lifecycle.repeatOnLifecycle
  * [effectsMinActiveState].
  */
 @Composable
-public fun <Event : Any, Model : Any, Effect : Any> UiFactory(
+public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
     presenter: MoleculePresenter<Event, Model, Effect>,
     onEffect: suspend (Effect) -> Unit,
     effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
