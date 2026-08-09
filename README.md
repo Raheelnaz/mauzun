@@ -157,7 +157,7 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | Event overflow | Throws on the 51st queued send before startup, the 117th behind a stalled handler |
 | Effects | One collector, buffered while the screen is stopped |
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
-| Effect overflow | Throws after 50 unconsumed |
+| Effect overflow | Throws when the 50 slot queue is full |
 | First read of `state` | Composes synchronously on the calling thread |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
 | A handler that throws | Cancellation ends that collector, anything else ends the presenter |

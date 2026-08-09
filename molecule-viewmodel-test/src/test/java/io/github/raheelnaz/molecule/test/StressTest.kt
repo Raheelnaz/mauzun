@@ -245,32 +245,40 @@ class StressTest {
     fun `every way a presenter dies leaves no recomposer running`() {
         val baseline = Recomposer.runningRecomposers.value.size
 
-        // A start that throws.
+        // A start that throws. The count has to be back before clear, or clear hides the leak.
         run {
             val deadStore = ViewModelStore()
             val vm = DiesOnStartViewModel()
             deadStore.put("vm", vm)
-            runCatching { vm.state }
-            deadStore.clear()
+            try {
+                assertThat(runCatching { vm.state }.isFailure).isEqualTo(true)
+                assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)
+            } finally {
+                deadStore.clear()
+            }
         }
-        assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)
 
         // A handler that throws. runTest reports the crash here instead of the next test.
         run {
             val deadStore = ViewModelStore()
             val vm = DiesOnEventViewModel()
             deadStore.put("vm", vm)
-            runCatching {
-                runTest(dispatcher) {
-                    vm.state
-                    advanceUntilIdle()
-                    vm.onEvent(1)
-                    advanceUntilIdle()
+            try {
+                val outcome = runCatching {
+                    runTest(dispatcher) {
+                        vm.state
+                        advanceUntilIdle()
+                        vm.onEvent(1)
+                        advanceUntilIdle()
+                    }
                 }
+                val root = generateSequence(outcome.exceptionOrNull()) { it.cause }.lastOrNull()
+                assertThat(root).isNotNull().hasMessage("dead")
+                assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)
+            } finally {
+                deadStore.clear()
             }
-            deadStore.clear()
         }
-        assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)
 
         // A plain clear.
         run {
