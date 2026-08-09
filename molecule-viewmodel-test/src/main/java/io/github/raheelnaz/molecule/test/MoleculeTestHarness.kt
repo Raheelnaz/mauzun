@@ -8,9 +8,9 @@ import io.github.raheelnaz.molecule.MoleculeViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -29,8 +29,9 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Ev
     val events = Channel<Event>(capacity = Channel.UNLIMITED)
 
     // Match production's broadcast behavior. Unconfined keeps sendEvent synchronous, and the
-    // extra Job gives finally something to cancel when the test ends.
-    val eventsScope = CoroutineScope(currentCoroutineContext() + Job() + Dispatchers.Unconfined)
+    // child job gives finally something to cancel when the test ends.
+    val eventsJob = Job(currentCoroutineContext().job)
+    val eventsScope = CoroutineScope(currentCoroutineContext() + eventsJob + Dispatchers.Unconfined)
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
     val effectsTurbine = effects.testIn(this)
@@ -46,7 +47,8 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Ev
     } finally {
         stateTurbine.cancelAndIgnoreRemainingEvents()
         effectsTurbine.cancelAndIgnoreRemainingEvents()
-        eventsScope.cancel()
+        events.close()
+        eventsJob.cancel()
     }
 }
 
@@ -65,10 +67,13 @@ public class MoleculeTestScope<Event : Any, Model : Any, Effect : Any> internal 
     public fun expectNoStateChanges(): Unit = stateTurbine.expectNoEvents()
 
     public fun sendEvent(event: Event) {
-        events.trySend(event)
+        events.trySend(event).getOrThrow()
     }
 
     public suspend fun awaitEffect(): Effect = effectsTurbine.awaitItem()
 
     public fun expectNoEffects(): Unit = effectsTurbine.expectNoEvents()
+
+    /** The failure that ended the presenter. */
+    public suspend fun awaitFailure(): Throwable = stateTurbine.awaitError()
 }
