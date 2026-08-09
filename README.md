@@ -38,7 +38,7 @@ Render it from Compose:
 ```kotlin
 val viewModel: CounterViewModel = hiltViewModel()
 
-UiFactory(
+PresenterHost(
     presenter = viewModel,
     onEffect = { effect ->
         when (effect) {
@@ -126,7 +126,7 @@ ViewModel and payload types in the message. Sending after the ViewModel is clear
 
 ### Effects
 
-Effects are delivered to one collector. `UiFactory` collects them while the UI lifecycle is at
+Effects are delivered to one collector. `PresenterHost` collects them while the UI lifecycle is at
 least `STARTED`, so effects remain queued while the screen is stopped.
 
 An effect is considered delivered when `onEffect` starts. If lifecycle cancellation happens after
@@ -167,13 +167,13 @@ stops the presenter and reaches the uncaught exception handler.
 
 ## UI lifecycle
 
-`UiFactory` collects models with `collectAsStateWithLifecycle`. Effects are collected with
+`PresenterHost` collects models with `collectAsStateWithLifecycle`. Effects are collected with
 `repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
 
 Set `effectsMinActiveState = Lifecycle.State.RESUMED` when an effect must wait until a navigation
 transition finishes.
 
-`UiFactory` controls collection in the UI. It does not pause the presenter itself; the molecule
+`PresenterHost` controls collection in the UI. It does not pause the presenter itself; the molecule
 runs until the ViewModel is cleared.
 
 ## Testing
