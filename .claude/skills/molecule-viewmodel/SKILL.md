@@ -8,8 +8,8 @@ description: Write and test presenters built with molecule-viewmodel.
 `MoleculeViewModel` runs a composable presenter and exposes its models as a `StateFlow`.
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.4.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.4.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.5.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.5.0")
 ```
 
 The library requires minSdk 23, Kotlin 2.3 or newer, and the Compose compiler plugin. JVM tests
