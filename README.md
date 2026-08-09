@@ -67,6 +67,15 @@ fun increment() = runTest {
 }
 ```
 
+One loop, one direction:
+
+```
+          events                    models
+UI ──────────────────▶ present() ──────────────────▶ UI
+                           │
+                           └── effects ──▶ onEffect
+```
+
 ## Installation
 
 ```kotlin
