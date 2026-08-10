@@ -137,7 +137,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
             override fun onEvent(event: Event) = this@MoleculeViewModel.onEvent(event)
         }
 
-    // moleculeViewModel() calls this before the first state read; the shared lock keeps the
+    // moleculeViewModel() calls this before the first state read, and the shared lock keeps the
     // two from racing.
     internal fun attachSavedState(savedState: PresenterSavedState) {
         synchronized(startLock) {

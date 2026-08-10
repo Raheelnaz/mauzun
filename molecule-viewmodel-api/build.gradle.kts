@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.maven.publish)
 }
 
-// The daemon runs on Java 21; without these pins the published variants say jvm 21 and the
+// The daemon runs on Java 21. Without these pins the published variants say jvm 21 and the
 // 17 targeting Android modules cannot resolve them.
 java {
     sourceCompatibility = JavaVersion.VERSION_17

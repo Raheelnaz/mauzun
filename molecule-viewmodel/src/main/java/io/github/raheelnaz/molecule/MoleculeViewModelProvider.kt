@@ -81,7 +81,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 
 // A presenter keyed under the holder prefix would replace another screen's holder, and that
 // screen's saved state would be lost. This runs before anything touches the ViewModelStore.
-// The hilt module carries a copy; the prefix is frozen by persistence, so neither can change.
+// The hilt module carries a copy. The prefix is frozen by persistence, so neither can change.
 @PublishedApi
 internal fun requireUsableKey(key: String?) {
     require(key == null || !key.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {
