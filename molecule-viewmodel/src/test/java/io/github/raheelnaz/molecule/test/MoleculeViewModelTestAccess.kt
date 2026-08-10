@@ -9,4 +9,4 @@ internal val <Event : Any, Model : Any, Effect : Any>
     get() = bindingInstance
 
 internal fun <VM : MoleculeViewModel<*, *, *>> VM.testEntry(): PresenterEntry<VM> =
-    PresenterEntry(this)
+    PresenterEntry.create(this)

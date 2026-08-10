@@ -15,11 +15,11 @@ class PresenterEntryInferenceTest {
     @Test
     fun `binding types are inferred from the entry ViewModel`() {
         val viewModel = InferenceViewModel()
-        val entry = PresenterEntry(viewModel)
+        val entry = PresenterEntry.create(viewModel)
         val binding: PresenterBinding<Int, String, Long> = entry.binding
 
         assertThat(binding).isSameInstanceAs(entry.binding)
-        assertThat(PresenterEntry(viewModel).binding).isSameInstanceAs(entry.binding)
+        assertThat(PresenterEntry.create(viewModel).binding).isSameInstanceAs(entry.binding)
     }
 }
 

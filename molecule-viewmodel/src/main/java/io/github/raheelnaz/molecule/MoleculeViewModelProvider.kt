@@ -82,7 +82,7 @@ public fun <VM : MoleculeViewModel<*, *, *>> moleculePresenterEntry(
         viewModelStoreOwner = viewModelStoreOwner,
         extras = extras,
     )
-    return remember(attached) { PresenterEntry(attached) }
+    return remember(attached) { PresenterEntry.create(attached) }
 }
 
 // A presenter keyed under the holder prefix would replace another screen's holder, and that
