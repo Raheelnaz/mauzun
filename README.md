@@ -36,7 +36,7 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 Render it from Compose:
 
 ```kotlin
-val viewModel: CounterViewModel = hiltViewModel()
+val viewModel: CounterViewModel = moleculeViewModel()
 
 PresenterHost(
     presenter = viewModel,
@@ -77,8 +77,14 @@ UI ──────────────────▶ present() ───
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.5.1")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.5.1")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.6.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.6.0")
+```
+
+Hilt users can add the optional adapter:
+
+```kotlin
+implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.6.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
@@ -227,10 +233,29 @@ The harness fails when the block returns with an unconsumed model or effect. Dri
 `sendEvent`; calling `viewModel.onEvent` writes to the production queue, which the harness does not
 read.
 
+## Saved state
+
+`moleculeViewModel()` lets a presenter use `rememberSaveable`. It installs saved state before it
+returns the ViewModel, so the first composition can restore values after process recreation.
+
+```kotlin
+val viewModel: ProductViewModel = moleculeViewModel()
+```
+
+Use the helper consistently for a given instance. Reading `state` first and trying to attach saved
+state later throws because the presenter has already started. For the same reason, do not read
+`state` from a constructor or an `init` block; the registry attaches after the ViewModel exists.
+Presenters obtained another way keep Compose's normal fallback from `rememberSaveable` to
+`remember` and can still use an injected `SavedStateHandle` directly.
+
 ## Hilt
 
-Hilt is optional. Add `@HiltViewModel` to the concrete class. A screen that takes an argument
-uses an assisted factory:
+Hilt is optional. Use `hiltMoleculeViewModel()` instead of `hiltViewModel()` to install the same
+saved-state support while Hilt creates the ViewModel. The adapter passes the same owner and key to
+both integrations.
+
+Add `@HiltViewModel` to the concrete class. A screen that takes an argument uses an assisted
+factory:
 
 ```kotlin
 @HiltViewModel(assistedFactory = ProductViewModel.Factory::class)
@@ -250,7 +275,7 @@ class ProductViewModel @AssistedInject constructor(
 ```
 
 ```kotlin
-val viewModel = hiltViewModel<ProductViewModel, ProductViewModel.Factory>(
+val viewModel = hiltMoleculeViewModel<ProductViewModel, ProductViewModel.Factory>(
     creationCallback = { factory -> factory.create(productId) },
 )
 ```
@@ -275,8 +300,8 @@ The molecule runs on `Dispatchers.Main`, not `Main.immediate`, to avoid the inva
 tracked in [cashapp/molecule#465](https://github.com/cashapp/molecule/issues/465). It does not use a
 Compose UI frame clock.
 
-`rememberSaveable` falls back to `remember` because the presenter has no saveable state registry.
-Use `SavedStateHandle` for state that must survive process death.
+The saved-state integration uses a private holder ViewModel. Concrete presenters keep their
+no-argument base constructor.
 
 The project is pre-1.0. Minor releases may change the public API; see [CHANGELOG.md](CHANGELOG.md)
 before upgrading.
