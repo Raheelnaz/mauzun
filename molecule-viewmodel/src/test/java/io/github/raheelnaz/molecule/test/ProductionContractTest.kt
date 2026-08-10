@@ -131,6 +131,17 @@ private class DisposingProdViewModel(
     }
 }
 
+private class RecursiveReadViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        // The misuse under test: consumers cannot write it since 0.8, the guard stays for
+        // in-module regressions, and lint still flags the read.
+        @Suppress("StateFlowValueCalledInComposition")
+        testBinding.state.value
+        return 0
+    }
+}
+
 private class ThrowOnFirstCompositionViewModel : MoleculeViewModel<Int, Int, Nothing>() {
     var compositions = 0
 
@@ -598,6 +609,15 @@ class ProductionContractTest {
         assertFailure { vm.testBinding.state }
             .isInstanceOf(IllegalStateException::class)
             .hasMessage("state was first read after the ViewModel was cleared")
+    }
+
+    @Test
+    fun `a state read inside present fails instead of composing twice`() {
+        val vm = RecursiveReadViewModel().tracked()
+
+        assertFailure { vm.testBinding.state }
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage("the presenter is already starting")
     }
 
     @Test
