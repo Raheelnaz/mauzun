@@ -52,7 +52,8 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 
 /**
  * Adds `rememberSaveable` support to [viewModel] when another integration created it. Use the same
- * [key] and [viewModelStoreOwner] that were used to obtain the ViewModel, before reading its state.
+ * [key] and [viewModelStoreOwner] that were used to obtain the ViewModel, before anything reads
+ * `presenterBinding().state`.
  */
 @Composable
 public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
