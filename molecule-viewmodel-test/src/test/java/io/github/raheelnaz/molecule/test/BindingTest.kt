@@ -3,6 +3,7 @@ package io.github.raheelnaz.molecule.test
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelStore
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isSameInstanceAs
 import io.github.raheelnaz.molecule.MoleculeViewModel
@@ -19,10 +20,12 @@ import org.junit.Test
 
 private class CountingCompositionsViewModel : MoleculeViewModel<Int, Int, String>() {
     var compositions = 0
+    val received = mutableListOf<Int>()
 
     @Composable
     override fun present(events: Flow<Int>): Int {
         compositions++
+        CollectEvents(events) { received += it }
         return 0
     }
 }
@@ -71,6 +74,8 @@ class BindingTest {
         assertThat(vm.compositions).isEqualTo(0)
 
         vm.presenterBinding.state
+        dispatcher.scheduler.advanceUntilIdle()
         assertThat(vm.compositions).isEqualTo(1)
+        assertThat(vm.received).containsExactly(7)
     }
 }

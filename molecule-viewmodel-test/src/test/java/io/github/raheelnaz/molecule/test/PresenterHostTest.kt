@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.testing.TestLifecycleOwner
@@ -16,6 +18,7 @@ import assertk.assertions.hasMessage
 import assertk.assertions.isEmpty
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
+import io.github.raheelnaz.molecule.MoleculeViewModel
 import io.github.raheelnaz.molecule.PresenterBinding
 import io.github.raheelnaz.molecule.PresenterHost
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +38,15 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+
+private class EchoHostViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        var n by remember { mutableStateOf(0) }
+        CollectEvents(events) { n = it }
+        return n
+    }
+}
 
 private class FakeBinding : PresenterBinding<Int, Int, String> {
     override val state = MutableStateFlow(0)
@@ -72,6 +84,29 @@ class PresenterHostTest {
             }.collect {}
         }
         runCurrent()
+    }
+
+    @Test
+    fun `the viewModel overload binds and renders`() = runTest(dispatcher) {
+        val store = ViewModelStore()
+        val vm = EchoHostViewModel()
+        store.put("vm", vm)
+        val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
+        val models = mutableListOf<Int>()
+        var send: ((Int) -> Unit)? = null
+
+        host(owner) {
+            PresenterHost(viewModel = vm, onEffect = {}) { state, onEvent ->
+                models += state
+                send = onEvent
+            }
+        }
+
+        send!!(3)
+        runCurrent()
+
+        assertThat(models).containsExactly(0, 3)
+        store.clear()
     }
 
     @Test

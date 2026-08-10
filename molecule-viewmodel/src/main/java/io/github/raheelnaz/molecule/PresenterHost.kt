@@ -23,8 +23,8 @@ public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
 
 /**
  * Renders [content] from [binding] and handles effects while the lifecycle is at least
- * [effectsMinActiveState]. Use this from a module that only knows the contract, or with a fake
- * binding in a test.
+ * [effectsMinActiveState]. Use this when the caller already holds a [PresenterBinding], a fake
+ * in a test or one passed across a module boundary.
  */
 @Composable
 public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(

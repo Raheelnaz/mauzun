@@ -5,9 +5,10 @@
 - New molecule-viewmodel-api artifact with the `PresenterBinding` contract: state, effects,
   onEvent, and nothing Android. A UI module can depend on it alone.
 - `MoleculeViewModel` no longer exposes `state` or `effects`. Screens read them through
-  `presenterBinding()`, one instance per ViewModel. A subclass that read its own state has to
+  `presenterBinding`, one instance per ViewModel. A subclass that read its own state has to
   switch to the binding too. `onEvent` stays public, so `init { onEvent(Load) }` keeps working.
-- `MoleculePresenter` is gone and `PresenterHost` takes the binding.
+- `MoleculePresenter` is gone. `PresenterHost` takes either the ViewModel or its
+  `PresenterBinding`.
 - The late attachment error names the init block case.
 
 ## [0.6.0] - 2026-08-10

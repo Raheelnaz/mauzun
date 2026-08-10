@@ -118,8 +118,8 @@ returns. That first composition runs on whichever thread reads `state` first, so
 read on Main. Later models are conflated by equality, like any other `StateFlow`.
 
 The ViewModel does not expose `state` or `effects`. They live on `presenterBinding`, one
-instance per ViewModel, and `PresenterHost` reads it for you when handed the ViewModel. Pass
-the binding itself from a module that only knows the contract.
+instance per ViewModel, and `PresenterHost` reads it for you when handed the ViewModel. A
+screen in a module that only knows the contract takes the binding as a parameter.
 
 ### Events
 
