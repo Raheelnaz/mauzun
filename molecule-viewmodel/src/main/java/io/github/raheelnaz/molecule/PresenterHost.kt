@@ -10,12 +10,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 
 /**
- * Renders [content] from [presenter] and handles effects while the lifecycle is at least
- * [effectsMinActiveState].
+ * Renders [content] from [viewModel]'s binding and handles effects while the lifecycle is at
+ * least [effectsMinActiveState].
  */
 @Composable
 public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
-    presenter: MoleculePresenter<Event, Model, Effect>,
+    viewModel: MoleculeViewModel<Event, Model, Effect>,
+    onEffect: suspend (Effect) -> Unit,
+    effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
+): Unit = PresenterHost(viewModel.presenterBinding, onEffect, effectsMinActiveState, content)
+
+/**
+ * Renders [content] from [binding] and handles effects while the lifecycle is at least
+ * [effectsMinActiveState]. Use this when the caller already holds a [PresenterBinding], a fake
+ * in a test or one passed across a module boundary.
+ */
+@Composable
+public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
+    binding: PresenterBinding<Event, Model, Effect>,
     onEffect: suspend (Effect) -> Unit,
     effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
@@ -23,15 +36,15 @@ public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
     require(effectsMinActiveState.isAtLeast(Lifecycle.State.CREATED)) {
         "effectsMinActiveState must be CREATED, STARTED, or RESUMED"
     }
-    val state by presenter.state.collectAsStateWithLifecycle()
+    val state by binding.state.collectAsStateWithLifecycle()
     val currentOnEffect by rememberUpdatedState(onEffect)
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(presenter, lifecycleOwner, effectsMinActiveState) {
+    LaunchedEffect(binding, lifecycleOwner, effectsMinActiveState) {
         lifecycleOwner.repeatOnLifecycle(effectsMinActiveState) {
-            presenter.effects.collect { currentOnEffect(it) }
+            binding.effects.collect { currentOnEffect(it) }
         }
     }
 
-    content(state, presenter::onEvent)
+    content(state, binding::onEvent)
 }

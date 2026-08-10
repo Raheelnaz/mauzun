@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 /** A ViewModel whose state is produced by a Molecule presenter. */
 public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> :
-    ViewModel(), MoleculePresenter<Event, Model, Effect> {
+    ViewModel() {
 
     private val eventChannel = Channel<Event>(capacity = 50)
     private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
@@ -32,7 +32,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     // Keep the same downstream capacity as shareIn's default buffer.
     private val events = MutableSharedFlow<Event>(extraBufferCapacity = 64)
 
-    final override val effects: Flow<Effect> = effectChannel.receiveAsFlow()
+    private val effects: Flow<Effect> = effectChannel.receiveAsFlow()
 
     private var startAttempted = false
     private var startFailure: Throwable? = null
@@ -41,7 +41,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
 
     // Immediate makes state.value available on the first read. The lazy and attachSavedState
     // share startLock, so an attach cannot race the first read.
-    final override val state: StateFlow<Model> by lazy(startLock) {
+    private val state: StateFlow<Model> by lazy(startLock) {
         check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
         // Kotlin retries a lazy initializer after it throws.
         startFailure?.let {
@@ -116,7 +116,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
      * Adds [event] to the input queue. Throws if its 50 slots are full. Events sent after the
      * ViewModel is cleared are ignored.
      */
-    final override fun onEvent(event: Event) {
+    public fun onEvent(event: Event) {
         eventChannel.trySendOrThrow(event, "Event", this)
     }
 
@@ -128,14 +128,24 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
         effectChannel.trySendOrThrow(effect, "Effect", this)
     }
 
-    // moleculeViewModel() calls this before the first state read; the shared lock keeps the
+    // One instance for the ViewModel's lifetime: PresenterHost restarts effect collection when
+    // the binding changes, so presenterBinding has to keep returning the same object.
+    internal val bindingInstance: PresenterBinding<Event, Model, Effect> =
+        object : PresenterBinding<Event, Model, Effect> {
+            override val state: StateFlow<Model> get() = this@MoleculeViewModel.state
+            override val effects: Flow<Effect> get() = this@MoleculeViewModel.effects
+            override fun onEvent(event: Event) = this@MoleculeViewModel.onEvent(event)
+        }
+
+    // moleculeViewModel() calls this before the first state read, and the shared lock keeps the
     // two from racing.
     internal fun attachSavedState(savedState: PresenterSavedState) {
         synchronized(startLock) {
             if (presenterSavedState === savedState) return
             check(!startAttempted) {
                 "rememberSaveable state was attached after the presenter started; " +
-                    "obtain this ViewModel with moleculeViewModel() before reading state"
+                    "obtain this ViewModel with moleculeViewModel() before anything reads " +
+                    "presenterBinding.state, and never read it from an init block"
             }
             check(presenterSavedState == null) {
                 "rememberSaveable state was attached from a different ViewModelStoreOwner or key"

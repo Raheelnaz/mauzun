@@ -20,6 +20,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import io.github.raheelnaz.molecule.presenterBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -147,7 +148,7 @@ class ComposeIdiomsTest {
         val vm = DisposingViewModel(log)
         store.put("vm", vm)
 
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
         assertThat(log).containsExactly("effect")
 

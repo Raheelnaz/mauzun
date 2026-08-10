@@ -39,7 +39,7 @@ Render it from Compose:
 val viewModel: CounterViewModel = moleculeViewModel()
 
 PresenterHost(
-    presenter = viewModel,
+    viewModel = viewModel,
     onEffect = { effect ->
         when (effect) {
             is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
@@ -88,7 +88,8 @@ implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.6.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
-module that subclasses `MoleculeViewModel`.
+module that subclasses `MoleculeViewModel`. `molecule-viewmodel-api` arrives transitively. Depend
+on it directly from a module that only needs the `PresenterBinding` contract.
 
 Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test
 paths, so enable default Android return values:
@@ -111,10 +112,14 @@ android {
 
 ### Models
 
-The molecule starts when `state` is first read. `RecompositionMode.Immediate` produces the first
-model during that read, so `state.value` is available as soon as the getter returns. That first
-composition runs on whichever thread reads `state` first, so make the first read on Main. Later
-models are conflated by equality, like any other `StateFlow`.
+The molecule starts when the binding's `state` is first read. `RecompositionMode.Immediate`
+produces the first model during that read, so `state.value` is available as soon as the getter
+returns. That first composition runs on whichever thread reads `state` first, so make the first
+read on Main. Later models are conflated by equality, like any other `StateFlow`.
+
+The ViewModel does not expose `state` or `effects`. They live on `presenterBinding`, one
+instance per ViewModel, and `PresenterHost` reads it for you when handed the ViewModel. A
+screen in a module that only knows the contract takes the binding as a parameter.
 
 ### Events
 
@@ -165,7 +170,7 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | Effects | One collector, buffered while the screen is stopped |
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
 | Effect overflow | Throws when the 50 slot queue is full |
-| First read of `state` | Composes synchronously on the calling thread |
+| First read of `presenterBinding.state` | Composes synchronously on the calling thread |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
 | A `CollectEvents` block that throws | Cancellation ends that collector, anything else ends the presenter |
 
@@ -243,8 +248,8 @@ val viewModel: ProductViewModel = moleculeViewModel()
 ```
 
 Get the ViewModel from the helper every time. Saved state hooks up before the presenter starts,
-so if something read `state` first, the helper throws instead of quietly losing the restored
-values. That is also why a constructor or `init` block must not read `state`.
+so if something read the binding's `state` first, the helper throws instead of quietly losing
+the restored values. That is also why a constructor or `init` block must not read it.
 
 Skipping the helper breaks nothing: `rememberSaveable` just behaves like `remember`, and an
 injected `SavedStateHandle` still works.

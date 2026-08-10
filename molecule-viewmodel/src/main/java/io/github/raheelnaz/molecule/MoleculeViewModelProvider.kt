@@ -52,7 +52,8 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 
 /**
  * Adds `rememberSaveable` support to [viewModel] when another integration created it. Use the same
- * [key] and [viewModelStoreOwner] that were used to obtain the ViewModel, before reading its state.
+ * [key] and [viewModelStoreOwner] that were used to obtain the ViewModel, before anything reads
+ * `presenterBinding.state`.
  */
 @Composable
 public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
@@ -80,7 +81,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 
 // A presenter keyed under the holder prefix would replace another screen's holder, and that
 // screen's saved state would be lost. This runs before anything touches the ViewModelStore.
-// The hilt module carries a copy; the prefix is frozen by persistence, so neither can change.
+// The hilt module carries a copy. The prefix is frozen by persistence, so neither can change.
 @PublishedApi
 internal fun requireUsableKey(key: String?) {
     require(key == null || !key.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {

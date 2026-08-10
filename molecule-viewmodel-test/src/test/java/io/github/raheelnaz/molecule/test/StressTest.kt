@@ -13,6 +13,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import io.github.raheelnaz.molecule.presenterBinding
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -103,7 +104,7 @@ class StressTest {
     fun `onEvent is safe to call from many threads at once`() {
         val vm = CountingViewModel()
         store.put("vm", vm)
-        vm.state
+        vm.presenterBinding.state
 
         // 48 sends per round stay under the 50 slot queue even if nothing drains mid-round.
         val threads = 8
@@ -137,7 +138,7 @@ class StressTest {
         val random = Random(20260809)
         val vm = StormViewModel()
         store.put("vm", vm)
-        val state = vm.state
+        val state = vm.presenterBinding.state
 
         val delivered = mutableListOf<String>()
         var collector: Job? = null
@@ -150,7 +151,7 @@ class StressTest {
                     sent += 1
                 }
                 1 -> if (collector == null) {
-                    collector = launch { vm.effects.collect { delivered += it } }
+                    collector = launch { vm.presenterBinding.effects.collect { delivered += it } }
                 }
                 2 -> {
                     collector?.cancel()
@@ -160,7 +161,7 @@ class StressTest {
             }
         }
         collector?.cancel()
-        val drain = launch { vm.effects.collect { delivered += it } }
+        val drain = launch { vm.presenterBinding.effects.collect { delivered += it } }
         advanceUntilIdle()
         drain.cancel()
 
@@ -192,7 +193,7 @@ class StressTest {
                                 sent += 1
                             }
                             1 -> if (collector == null) {
-                                collector = launch { vm.effects.collect { delivered += it } }
+                                collector = launch { vm.presenterBinding.effects.collect { delivered += it } }
                             }
                             2 -> {
                                 collector?.cancel()
@@ -202,7 +203,7 @@ class StressTest {
                         }
                     }
                     collector?.cancel()
-                    val drain = launch { vm.effects.collect { delivered += it } }
+                    val drain = launch { vm.presenterBinding.effects.collect { delivered += it } }
                     advanceUntilIdle()
                     drain.cancel()
 
@@ -222,7 +223,7 @@ class StressTest {
     fun `a stalled handler jams the pipeline at a known depth`() = runTest(dispatcher) {
         val vm = StallingViewModel()
         store.put("stalled", vm)
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
 
         var accepted = 0
@@ -253,7 +254,7 @@ class StressTest {
             val vm = DiesOnStartViewModel()
             deadStore.put("vm", vm)
             try {
-                assertThat(runCatching { vm.state }.isFailure).isEqualTo(true)
+                assertThat(runCatching { vm.presenterBinding.state }.isFailure).isEqualTo(true)
                 assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)
             } finally {
                 deadStore.clear()
@@ -268,7 +269,7 @@ class StressTest {
             try {
                 val outcome = runCatching {
                     runTest(dispatcher) {
-                        vm.state
+                        vm.presenterBinding.state
                         advanceUntilIdle()
                         vm.onEvent(1)
                         advanceUntilIdle()
@@ -287,7 +288,7 @@ class StressTest {
             val deadStore = ViewModelStore()
             val vm = CountingViewModel()
             deadStore.put("vm", vm)
-            vm.state
+            vm.presenterBinding.state
             deadStore.clear()
         }
         assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(baseline)

@@ -50,7 +50,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>, reified VMF> hiltMol
 }
 
 // hiltViewModel runs before the core module can validate, so the reserved prefix check lives
-// here too. It must stay identical to the core module's; persistence freezes both.
+// here too. It must stay identical to the core module's, and persistence freezes both.
 @PublishedApi
 internal fun requireUsableKey(key: String?) {
     require(

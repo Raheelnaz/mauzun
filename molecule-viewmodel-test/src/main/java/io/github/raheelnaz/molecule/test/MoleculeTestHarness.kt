@@ -5,6 +5,7 @@ import app.cash.molecule.moleculeFlow
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.turbineScope
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import io.github.raheelnaz.molecule.presenterBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,7 +34,7 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Ev
     val eventsScope = CoroutineScope(currentCoroutineContext() + eventsJob + Dispatchers.Unconfined)
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
-    val effectsTurbine = effects.testIn(this)
+    val effectsTurbine = presenterBinding.effects.testIn(this)
     val stateTurbine = moleculeFlow(RecompositionMode.Immediate) { present(eventsFlow) }
         // Match StateFlow's equality-based conflation.
         .distinctUntilChanged()

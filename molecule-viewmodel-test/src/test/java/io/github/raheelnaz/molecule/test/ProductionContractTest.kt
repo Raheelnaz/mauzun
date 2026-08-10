@@ -20,6 +20,7 @@ import assertk.assertions.hasMessage
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import io.github.raheelnaz.molecule.presenterBinding
 import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
@@ -132,7 +133,7 @@ private class RecursiveReadViewModel : MoleculeViewModel<Int, Int, Nothing>() {
     override fun present(events: Flow<Int>): Int {
         // The misuse under test: lint flags it, the guard has to survive it at runtime.
         @Suppress("StateFlowValueCalledInComposition")
-        state.value
+        presenterBinding.state.value
         return 0
     }
 }
@@ -199,7 +200,7 @@ class ProductionContractTest {
         vm.onEvent(41)
         vm.onEvent(42)
 
-        val state = vm.state
+        val state = vm.presenterBinding.state
         advanceUntilIdle()
 
         assertThat(state.value).isEqualTo(42)
@@ -210,7 +211,7 @@ class ProductionContractTest {
         val seen = mutableListOf<String>()
         val vm = TwoCollectorProdViewModel(seen).tracked()
 
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
         vm.onEvent(7)
         advanceUntilIdle()
@@ -221,14 +222,14 @@ class ProductionContractTest {
     @Test
     fun `effects wait for a collector and keep their order`() = runTest(dispatcher) {
         val vm = EffectProdViewModel().tracked()
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
 
         vm.onEvent(1)
         vm.onEvent(2)
         advanceUntilIdle()
 
-        vm.effects.test {
+        vm.presenterBinding.effects.test {
             assertThat(awaitItem()).isEqualTo("e1")
             assertThat(awaitItem()).isEqualTo("e2")
         }
@@ -242,7 +243,7 @@ class ProductionContractTest {
 
         val delivered = mutableListOf<String>()
         val slowCollector = launch {
-            vm.effects.collect {
+            vm.presenterBinding.effects.collect {
                 delivered += it
                 delay(1_000)
             }
@@ -252,7 +253,7 @@ class ProductionContractTest {
 
         assertThat(delivered).containsExactly("first")
 
-        vm.effects.test {
+        vm.presenterBinding.effects.test {
             assertThat(awaitItem()).isEqualTo("second")
         }
     }
@@ -262,7 +263,7 @@ class ProductionContractTest {
         val log = mutableListOf<String>()
         val vm = WatchingProdViewModel(log).tracked()
 
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
         vm.onEvent(1)
         advanceUntilIdle()
@@ -291,7 +292,7 @@ class ProductionContractTest {
     @Test
     fun `CollectEventsOf filters the real event channel`() = runTest(dispatcher) {
         val vm = TypedProdViewModel().tracked()
-        val state = vm.state
+        val state = vm.presenterBinding.state
         advanceUntilIdle()
 
         vm.onEvent(Skip)
@@ -308,14 +309,14 @@ class ProductionContractTest {
         val store = ViewModelStore()
         val vm = EffectProdViewModel()
         store.put("vm", vm)
-        vm.state
+        vm.presenterBinding.state
         advanceUntilIdle()
         vm.onEvent(1)
         advanceUntilIdle()
 
         store.clear()
 
-        vm.effects.test {
+        vm.presenterBinding.effects.test {
             assertThat(awaitItem()).isEqualTo("e1")
             awaitComplete()
         }
@@ -333,7 +334,7 @@ class ProductionContractTest {
                 store.put("vm", vm)
                 try {
                     val delivered = mutableListOf<String>()
-                    val racer = launch { vm.effects.collect { delivered += it } }
+                    val racer = launch { vm.presenterBinding.effects.collect { delivered += it } }
                     runCurrent()
                     vm.flood("racy")
                     racer.cancel()
@@ -341,7 +342,7 @@ class ProductionContractTest {
 
                     assertThat(delivered).isEmpty()
 
-                    vm.effects.test {
+                    vm.presenterBinding.effects.test {
                         assertThat(awaitItem()).isEqualTo("racy")
                     }
                 } finally {
@@ -365,7 +366,7 @@ class ProductionContractTest {
                 store.put("vm", vm)
                 try {
                     val delivered = mutableListOf<String>()
-                    val racer = launch { vm.effects.collect { delivered += it } }
+                    val racer = launch { vm.presenterBinding.effects.collect { delivered += it } }
                     runCurrent()
                     vm.flood("racy")
                     repeat(50) { vm.flood("filler$it") }
@@ -374,7 +375,7 @@ class ProductionContractTest {
 
                     assertThat(delivered).isEmpty()
 
-                    vm.effects.test {
+                    vm.presenterBinding.effects.test {
                         repeat(50) { assertThat(awaitItem()).isEqualTo("filler$it") }
                     }
                 } finally {
@@ -397,14 +398,14 @@ class ProductionContractTest {
                 val vm = EffectFloodViewModel()
                 store.put("vm", vm)
                 try {
-                    val racer = launch { vm.effects.collect { } }
+                    val racer = launch { vm.presenterBinding.effects.collect { } }
                     runCurrent()
                     vm.flood("first")
                     vm.flood("second")
                     racer.cancel()
                     runCurrent()
 
-                    vm.effects.test {
+                    vm.presenterBinding.effects.test {
                         assertThat(awaitItem()).isEqualTo("second")
                         assertThat(awaitItem()).isEqualTo("first")
                     }
@@ -449,7 +450,7 @@ class ProductionContractTest {
                 store.put("vm", vm)
                 vm.onEvent(9)
                 try {
-                    vm.state
+                    vm.presenterBinding.state
                     advanceUntilIdle()
                     assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
                 } finally {
@@ -473,7 +474,7 @@ class ProductionContractTest {
             store.put("vm", vm)
             try {
                 vm.onEvent(9)
-                vm.state
+                vm.presenterBinding.state
                 looper.drain()
 
                 assertThat(seen).containsExactlyInAnyOrder("first:9", "second:9")
@@ -489,7 +490,7 @@ class ProductionContractTest {
     @Test
     fun `state has a value the moment the getter returns`() {
         val vm = EchoProdViewModel().tracked()
-        assertThat(vm.state.value).isEqualTo(0)
+        assertThat(vm.presenterBinding.state.value).isEqualTo(0)
     }
 
     @Test
@@ -498,7 +499,7 @@ class ProductionContractTest {
             val store = ViewModelStore()
             val vm = EchoProdViewModel()
             store.put("vm", vm)
-            vm.state
+            vm.presenterBinding.state
             store.clear()
         }
         advanceUntilIdle()
@@ -508,11 +509,11 @@ class ProductionContractTest {
     fun `a presenter that throws during its first composition composes once`() {
         val vm = ThrowOnFirstCompositionViewModel().tracked()
 
-        assertFailure { vm.state }
+        assertFailure { vm.presenterBinding.state }
             .isInstanceOf(IllegalStateException::class)
             .hasMessage("boom in present")
 
-        val secondRead = runCatching { vm.state }.exceptionOrNull()
+        val secondRead = runCatching { vm.presenterBinding.state }.exceptionOrNull()
         assertThat(secondRead)
             .isNotNull()
             .isInstanceOf(IllegalStateException::class)
@@ -526,7 +527,7 @@ class ProductionContractTest {
     fun `a state read inside present fails instead of composing twice`() {
         val vm = RecursiveReadViewModel().tracked()
 
-        assertFailure { vm.state }
+        assertFailure { vm.presenterBinding.state }
             .isInstanceOf(IllegalStateException::class)
             .hasMessage("the presenter is already starting")
     }
@@ -536,7 +537,7 @@ class ProductionContractTest {
         val running = Recomposer.runningRecomposers.value.size
         val vm = ThrowOnFirstCompositionViewModel().tracked()
 
-        assertFailure { vm.state }
+        assertFailure { vm.presenterBinding.state }
 
         assertThat(Recomposer.runningRecomposers.value.size).isEqualTo(running)
     }
@@ -545,7 +546,7 @@ class ProductionContractTest {
     fun `a handler cancellation takes only that collector on the production path`() =
         runTest(dispatcher) {
             val vm = CancellingHandlerProdViewModel().tracked()
-            val state = vm.state
+            val state = vm.presenterBinding.state
             advanceUntilIdle()
 
             vm.onEvent(1)
@@ -561,7 +562,7 @@ class ProductionContractTest {
         val outcome = runCatching {
             runTest(dispatcher) {
                 val vm = CrashOnEventProdViewModel().tracked()
-                vm.state
+                vm.presenterBinding.state
                 advanceUntilIdle()
                 vm.onEvent(1)
                 advanceUntilIdle()
@@ -586,7 +587,7 @@ class ProductionContractTest {
         val vm = ThreadRecordingViewModel().tracked()
         val reader = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "reader") }
         try {
-            reader.submit { vm.state }.get()
+            reader.submit { vm.presenterBinding.state }.get()
 
             assertThat(vm.threads).containsExactly("reader")
         } finally {
@@ -600,7 +601,7 @@ class ProductionContractTest {
         val vm = EchoProdViewModel()
         store.put("vm", vm)
         store.clear()
-        assertFailure { vm.state }
+        assertFailure { vm.presenterBinding.state }
             .isInstanceOf(IllegalStateException::class)
             .hasMessage("state was first read after the ViewModel was cleared")
     }
