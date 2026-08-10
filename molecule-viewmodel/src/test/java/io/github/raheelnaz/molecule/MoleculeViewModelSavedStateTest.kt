@@ -444,6 +444,24 @@ class MoleculeViewModelSavedStateTest {
     }
 
     @Test
+    fun `the holder key prefix is rejected as a presenter key`() = runTest(dispatcher) {
+        val host = Host()
+
+        assertFailure {
+            host.obtain<SaveableViewModel>(
+                key = "io.github.raheelnaz.molecule.presenter-saved-state-holder:screen",
+                factory = saveableFactory,
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class)
+            .hasMessage(
+                "ViewModel keys starting with " +
+                    "io.github.raheelnaz.molecule.presenter-saved-state-holder: are reserved",
+            )
+        host.viewModelStore.clear()
+    }
+
+    @Test
     fun `a malformed saved-state envelope is ignored`() = runTest(dispatcher) {
         val handle = SavedStateHandle(mapOf(PresenterSavedState.KEY to "garbage"))
         val savedState = PresenterSavedState(handle)

@@ -97,6 +97,11 @@ internal fun <VM : MoleculeViewModel<*, *, *>> attachMoleculeSavedState(
     viewModelStoreOwner: ViewModelStoreOwner,
     extras: CreationExtras,
 ): VM {
+    // A presenter keyed under this prefix would replace another screen's holder, and that
+    // screen's saved state would be lost.
+    require(!viewModelKey.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {
+        "ViewModel keys starting with $SAVED_STATE_HOLDER_KEY_PREFIX are reserved"
+    }
     val holder = androidxViewModel<PresenterSavedStateHolder>(
         viewModelStoreOwner = viewModelStoreOwner,
         key = SAVED_STATE_HOLDER_KEY_PREFIX + viewModelKey,
