@@ -33,6 +33,7 @@ import assertk.assertThat
 import assertk.assertions.hasMessage
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import java.io.Serializable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -459,6 +460,34 @@ class MoleculeViewModelSavedStateTest {
                     "io.github.raheelnaz.molecule.presenter-saved-state-holder: are reserved",
             )
         host.viewModelStore.clear()
+    }
+
+    @Test
+    fun `an owner without saved state support names the problem`() = runTest(dispatcher) {
+        val store = ViewModelStore()
+        val bare = object : ViewModelStoreOwner {
+            override val viewModelStore: ViewModelStore get() = store
+        }
+
+        val outcome = runCatching {
+            moleculeFlow(RecompositionMode.Immediate) {
+                moleculeViewModel<SaveableViewModel>(
+                    viewModelStoreOwner = bare,
+                    factory = saveableFactory,
+                )
+            }.first()
+        }
+
+        val named = generateSequence(outcome.exceptionOrNull()) { it.cause }
+            .firstOrNull { it.message?.startsWith("moleculeViewModel needs") == true }
+        assertThat(named)
+            .isNotNull()
+            .isInstanceOf(IllegalStateException::class)
+            .hasMessage(
+                "moleculeViewModel needs a ViewModelStoreOwner that provides saved state. " +
+                    "An Activity, Fragment, or navigation entry does; this owner does not.",
+            )
+        store.clear()
     }
 
     @Test

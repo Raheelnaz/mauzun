@@ -71,11 +71,12 @@ internal fun ViewModelStoreOwner.defaultCreationExtras(): CreationExtras =
         CreationExtras.Empty
     }
 
+// Prefixed so a derived key can never collide with an explicit one.
 @PublishedApi
 internal fun defaultViewModelKey(modelClass: Class<*>): String {
     val canonicalName = modelClass.canonicalName
         ?: throw IllegalArgumentException("Local and anonymous classes can not be ViewModels")
-    return "androidx.lifecycle.ViewModelProvider.DefaultKey:$canonicalName"
+    return "io.github.raheelnaz.molecule.default-key:$canonicalName"
 }
 
 private const val SAVED_STATE_HOLDER_KEY_PREFIX =
@@ -86,7 +87,20 @@ private class PresenterSavedStateHolder(handle: SavedStateHandle) : ViewModel() 
 }
 
 private val presenterSavedStateHolderFactory = viewModelFactory {
-    initializer { PresenterSavedStateHolder(createSavedStateHandle()) }
+    initializer {
+        // androidx throws IllegalArgumentException for a missing extra and IllegalStateException
+        // for missing setup; the try covers that one call, so catch both.
+        val handle = try {
+            createSavedStateHandle()
+        } catch (failure: RuntimeException) {
+            throw IllegalStateException(
+                "moleculeViewModel needs a ViewModelStoreOwner that provides saved state. " +
+                    "An Activity, Fragment, or navigation entry does; this owner does not.",
+                failure,
+            )
+        }
+        PresenterSavedStateHolder(handle)
+    }
 }
 
 @Composable
