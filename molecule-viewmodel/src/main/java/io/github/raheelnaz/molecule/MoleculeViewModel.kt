@@ -53,20 +53,18 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
         }
     }
 
-    // Immediate makes state.value available on the first read.
-    final override val state: StateFlow<Model> by lazy {
-        val savedState = synchronized(startLock) {
-            check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
-            // Kotlin retries a lazy initializer after it throws.
-            startFailure?.let {
-                throw IllegalStateException("the presenter already failed to start", it)
-            }
-            // lazy's lock is reentrant: a state read inside present would recurse right back here.
-            check(!startAttempted) { "the presenter is already starting" }
-            startAttempted = true
-            presenterSavedState
+    // Immediate makes state.value available on the first read. The lazy holds startLock, the
+    // same monitor attachSavedState takes, so an attach cannot interleave with the first read.
+    final override val state: StateFlow<Model> by lazy(startLock) {
+        check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
+        // Kotlin retries a lazy initializer after it throws.
+        startFailure?.let {
+            throw IllegalStateException("the presenter already failed to start", it)
         }
-        startPresenter(savedState)
+        // The monitor is reentrant: a state read inside present would recurse right back here.
+        check(!startAttempted) { "the presenter is already starting" }
+        startAttempted = true
+        startPresenter(presenterSavedState)
     }
 
     // A presenter failure must stop the event relay too. The cancel on a failed start also
