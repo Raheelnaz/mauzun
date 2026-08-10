@@ -148,7 +148,7 @@ class ComposeIdiomsTest {
         val vm = DisposingViewModel(log)
         store.put("vm", vm)
 
-        vm.presenterBinding().state
+        vm.presenterBinding.state
         advanceUntilIdle()
         assertThat(log).containsExactly("effect")
 

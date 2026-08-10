@@ -34,7 +34,7 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Ev
     val eventsScope = CoroutineScope(currentCoroutineContext() + eventsJob + Dispatchers.Unconfined)
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
-    val effectsTurbine = presenterBinding().effects.testIn(this)
+    val effectsTurbine = presenterBinding.effects.testIn(this)
     val stateTurbine = moleculeFlow(RecompositionMode.Immediate) { present(eventsFlow) }
         // Match StateFlow's equality-based conflation.
         .distinctUntilChanged()

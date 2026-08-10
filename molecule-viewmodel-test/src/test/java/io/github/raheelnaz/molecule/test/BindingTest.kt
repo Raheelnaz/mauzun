@@ -47,7 +47,7 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        assertThat(vm.presenterBinding()).isSameInstanceAs(vm.presenterBinding())
+        assertThat(vm.presenterBinding).isSameInstanceAs(vm.presenterBinding)
     }
 
     @Test
@@ -55,10 +55,10 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        vm.presenterBinding().effects
+        vm.presenterBinding.effects
         assertThat(vm.compositions).isEqualTo(0)
 
-        vm.presenterBinding().state
+        vm.presenterBinding.state
         assertThat(vm.compositions).isEqualTo(1)
     }
 
@@ -67,10 +67,10 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        vm.presenterBinding().onEvent(7)
+        vm.presenterBinding.onEvent(7)
         assertThat(vm.compositions).isEqualTo(0)
 
-        vm.presenterBinding().state
+        vm.presenterBinding.state
         assertThat(vm.compositions).isEqualTo(1)
     }
 }

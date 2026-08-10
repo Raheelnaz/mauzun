@@ -39,7 +39,7 @@ Render it from Compose:
 val viewModel: CounterViewModel = moleculeViewModel()
 
 PresenterHost(
-    binding = viewModel.presenterBinding(),
+    viewModel = viewModel,
     onEffect = { effect ->
         when (effect) {
             is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
@@ -117,8 +117,9 @@ produces the first model during that read, so `state.value` is available as soon
 returns. That first composition runs on whichever thread reads `state` first, so make the first
 read on Main. Later models are conflated by equality, like any other `StateFlow`.
 
-The ViewModel does not expose `state` or `effects`. The screen reads them through
-`presenterBinding()`, which returns the same instance every call. Reading `state` from a
+The ViewModel does not expose `state` or `effects`. They live on `presenterBinding`, one
+instance per ViewModel, and `PresenterHost` reads it for you when handed the ViewModel. Pass
+the binding itself from a module that only knows the contract. Reading `state` from a
 constructor or `init` block is still possible through the binding, and still wrong. The saved
 state guard throws when it happens.
 
@@ -171,7 +172,7 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | Effects | One collector, buffered while the screen is stopped |
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
 | Effect overflow | Throws when the 50 slot queue is full |
-| First read of `presenterBinding().state` | Composes synchronously on the calling thread |
+| First read of `presenterBinding.state` | Composes synchronously on the calling thread |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
 | A `CollectEvents` block that throws | Cancellation ends that collector, anything else ends the presenter |
 

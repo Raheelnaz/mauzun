@@ -36,7 +36,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-private class FakePresenter : PresenterBinding<Int, Int, String> {
+private class FakeBinding : PresenterBinding<Int, Int, String> {
     override val state = MutableStateFlow(0)
     private val effectChannel = Channel<String>(capacity = 50)
     override val effects: Flow<String> = effectChannel.receiveAsFlow()
@@ -76,13 +76,13 @@ class PresenterHostTest {
 
     @Test
     fun `content sees the latest model and forwards events`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
         val models = mutableListOf<Int>()
         var send: ((Int) -> Unit)? = null
 
         host(owner) {
-            PresenterHost(presenter, onEffect = {}) { state, onEvent ->
+            PresenterHost(binding, onEffect = {}) { state, onEvent ->
                 models += state
                 send = onEvent
             }
@@ -90,29 +90,29 @@ class PresenterHostTest {
 
         assertThat(models).containsExactly(0)
 
-        presenter.state.value = 1
+        binding.state.value = 1
         runCurrent()
         assertThat(models).containsExactly(0, 1)
 
         send!!(42)
-        assertThat(presenter.received).containsExactly(42)
+        assertThat(binding.received).containsExactly(42)
     }
 
     @Test
     fun `models wait while the lifecycle is stopped`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
         val models = mutableListOf<Int>()
 
         host(owner) {
-            PresenterHost(presenter, onEffect = {}) { state, _ -> models += state }
+            PresenterHost(binding, onEffect = {}) { state, _ -> models += state }
         }
 
         assertThat(models).containsExactly(0)
 
         owner.currentState = Lifecycle.State.CREATED
         runCurrent()
-        presenter.state.value = 1
+        binding.state.value = 1
         runCurrent()
         assertThat(models).containsExactly(0)
 
@@ -123,19 +123,19 @@ class PresenterHostTest {
 
     @Test
     fun `RESUMED as the minimum holds effects until resumed`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
         val handled = mutableListOf<String>()
 
         host(owner) {
             PresenterHost(
-                presenter,
+                binding,
                 onEffect = { handled += it },
                 effectsMinActiveState = Lifecycle.State.RESUMED,
             ) { _, _ -> }
         }
 
-        presenter.emitEffect("early")
+        binding.emitEffect("early")
         runCurrent()
         assertThat(handled).isEmpty()
 
@@ -146,15 +146,15 @@ class PresenterHostTest {
 
     @Test
     fun `effects are not handled below STARTED`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.CREATED, dispatcher)
         val handled = mutableListOf<String>()
 
         host(owner) {
-            PresenterHost(presenter, onEffect = { handled += it }) { _, _ -> }
+            PresenterHost(binding, onEffect = { handled += it }) { _, _ -> }
         }
 
-        presenter.emitEffect("early")
+        binding.emitEffect("early")
         runCurrent()
 
         assertThat(handled).isEmpty()
@@ -162,15 +162,15 @@ class PresenterHostTest {
 
     @Test
     fun `entering STARTED delivers the buffered effect`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.CREATED, dispatcher)
         val handled = mutableListOf<String>()
 
         host(owner) {
-            PresenterHost(presenter, onEffect = { handled += it }) { _, _ -> }
+            PresenterHost(binding, onEffect = { handled += it }) { _, _ -> }
         }
 
-        presenter.emitEffect("early")
+        binding.emitEffect("early")
         runCurrent()
 
         owner.currentState = Lifecycle.State.STARTED
@@ -181,21 +181,21 @@ class PresenterHostTest {
 
     @Test
     fun `effects pause while stopped and resume afterward`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
         val handled = mutableListOf<String>()
 
         host(owner) {
-            PresenterHost(presenter, onEffect = { handled += it }) { _, _ -> }
+            PresenterHost(binding, onEffect = { handled += it }) { _, _ -> }
         }
 
-        presenter.emitEffect("first")
+        binding.emitEffect("first")
         runCurrent()
         assertThat(handled).containsExactly("first")
 
         owner.currentState = Lifecycle.State.CREATED
         runCurrent()
-        presenter.emitEffect("second")
+        binding.emitEffect("second")
         runCurrent()
         assertThat(handled).containsExactly("first")
 
@@ -206,22 +206,22 @@ class PresenterHostTest {
 
     @Test
     fun `recomposition swaps in the latest onEffect`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
         val first = mutableListOf<String>()
         val second = mutableListOf<String>()
         var handler by mutableStateOf<suspend (String) -> Unit>({ first += it })
 
         host(owner) {
-            PresenterHost(presenter, onEffect = handler) { _, _ -> }
+            PresenterHost(binding, onEffect = handler) { _, _ -> }
         }
 
-        presenter.emitEffect("one")
+        binding.emitEffect("one")
         runCurrent()
 
         handler = { second += it }
         runCurrent()
-        presenter.emitEffect("two")
+        binding.emitEffect("two")
         runCurrent()
 
         assertThat(first).containsExactly("one")
@@ -230,7 +230,7 @@ class PresenterHostTest {
 
     @Test
     fun `INITIALIZED and DESTROYED are rejected as minimum effect states`() = runTest(dispatcher) {
-        val presenter = FakePresenter()
+        val binding = FakeBinding()
         val owner = TestLifecycleOwner(Lifecycle.State.STARTED, dispatcher)
 
         for (state in listOf(Lifecycle.State.INITIALIZED, Lifecycle.State.DESTROYED)) {
@@ -238,7 +238,7 @@ class PresenterHostTest {
                 moleculeFlow(RecompositionMode.Immediate) {
                     CompositionLocalProvider(LocalLifecycleOwner provides owner) {
                         PresenterHost(
-                            presenter,
+                            binding,
                             onEffect = {},
                             effectsMinActiveState = state,
                         ) { _, _ -> }

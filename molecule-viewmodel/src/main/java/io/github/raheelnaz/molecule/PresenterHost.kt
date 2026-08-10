@@ -10,8 +10,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 
 /**
+ * Renders [content] from [viewModel]'s binding and handles effects while the lifecycle is at
+ * least [effectsMinActiveState].
+ */
+@Composable
+public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
+    viewModel: MoleculeViewModel<Event, Model, Effect>,
+    onEffect: suspend (Effect) -> Unit,
+    effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
+): Unit = PresenterHost(viewModel.presenterBinding, onEffect, effectsMinActiveState, content)
+
+/**
  * Renders [content] from [binding] and handles effects while the lifecycle is at least
- * [effectsMinActiveState].
+ * [effectsMinActiveState]. Use this from a module that only knows the contract, or with a fake
+ * binding in a test.
  */
 @Composable
 public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
@@ -35,4 +48,3 @@ public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
 
     content(state, binding::onEvent)
 }
-
