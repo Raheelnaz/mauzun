@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
@@ -35,23 +36,42 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
 
     private var startAttempted = false
     private var startFailure: Throwable? = null
+    private val startLock = Any()
+    private var presenterSavedState: PresenterSavedState? = null
+
+    internal fun attachSavedState(savedState: PresenterSavedState) {
+        synchronized(startLock) {
+            if (presenterSavedState === savedState) return
+            check(!startAttempted) {
+                "rememberSaveable state was attached after the presenter started; " +
+                    "obtain this ViewModel with moleculeViewModel() before reading state"
+            }
+            check(presenterSavedState == null) {
+                "rememberSaveable state was attached from a different ViewModelStoreOwner or key"
+            }
+            presenterSavedState = savedState
+        }
+    }
 
     // Immediate makes state.value available on the first read.
     final override val state: StateFlow<Model> by lazy {
-        check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
-        // Kotlin retries a lazy initializer after it throws.
-        startFailure?.let {
-            throw IllegalStateException("the presenter already failed to start", it)
+        val savedState = synchronized(startLock) {
+            check(viewModelScope.isActive) { "state was first read after the ViewModel was cleared" }
+            // Kotlin retries a lazy initializer after it throws.
+            startFailure?.let {
+                throw IllegalStateException("the presenter already failed to start", it)
+            }
+            // lazy's lock is reentrant: a state read inside present would recurse right back here.
+            check(!startAttempted) { "the presenter is already starting" }
+            startAttempted = true
+            presenterSavedState
         }
-        // lazy's lock is reentrant: a state read inside present would recurse right back here.
-        check(!startAttempted) { "the presenter is already starting" }
-        startAttempted = true
-        startPresenter()
+        startPresenter(savedState)
     }
 
     // A presenter failure must stop the event relay too. The cancel on a failed start also
     // covers a Recomposer leak fixed upstream in cashapp/molecule#761.
-    private fun startPresenter(): StateFlow<Model> {
+    private fun startPresenter(savedState: PresenterSavedState?): StateFlow<Model> {
         val presenterJob = Job(viewModelScope.coroutineContext.job)
         val presenterScope = CoroutineScope(viewModelScope.coroutineContext + presenterJob)
         try {
@@ -59,7 +79,13 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
                 mode = RecompositionMode.Immediate,
                 context = Dispatchers.Main,
             ) {
-                present(events)
+                if (savedState == null) {
+                    present(events)
+                } else {
+                    withCompositionLocal(LocalSaveableStateRegistry provides savedState.registry) {
+                        present(events)
+                    }
+                }
             }
             // Main queues the relay until every initial event collector has subscribed.
             presenterScope.launch(Dispatchers.Main) {

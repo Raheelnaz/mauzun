@@ -33,11 +33,19 @@ kotlin {
 
 dependencies {
     api(libs.androidx.compose.runtime)
+    api(libs.androidx.compose.runtime.saveable)
+    api(libs.androidx.lifecycle.viewmodel.compose)
     api(libs.kotlinx.coroutines.core)
     api(libs.androidx.lifecycle.viewmodel.ktx)
 
     implementation(libs.molecule.runtime)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.savedstate)
 
+    testImplementation(libs.assertk)
+    testImplementation(libs.androidx.lifecycle.runtime.testing)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
 }
