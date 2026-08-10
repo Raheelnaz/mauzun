@@ -4,7 +4,7 @@
 
 - `moleculeViewModel()` and `hiltMoleculeViewModel()` return a `PresenterEntry` instead of the
   ViewModel. The entry exposes the binding without exposing the ViewModel, so a subclass has no
-  route to its own state or effects. Retrieval keeps its one type argument.
+  production route to its own state or effects. Retrieval keeps its one type argument.
 - Add `molecule-viewmodel-compose`. Its `PresenterHost` takes a binding and depends only on the
   contract and lifecycle Compose, so a feature UI module can skip the ViewModel runtime.
 - `PresenterHost` takes the entry or the binding. The ViewModel overload and the

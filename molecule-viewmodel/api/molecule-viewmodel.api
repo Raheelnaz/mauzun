@@ -27,7 +27,7 @@ public abstract interface annotation class io/github/raheelnaz/molecule/Molecule
 }
 
 public final class io/github/raheelnaz/molecule/MoleculeViewModelTestingApiKt {
-	public static final fun effectsForTest (Lio/github/raheelnaz/molecule/MoleculeViewModel;)Lkotlinx/coroutines/flow/Flow;
+	public static final synthetic fun effectsForTest (Lio/github/raheelnaz/molecule/MoleculeViewModel;)Lkotlinx/coroutines/flow/Flow;
 }
 
 public final class io/github/raheelnaz/molecule/PresenterEntry {

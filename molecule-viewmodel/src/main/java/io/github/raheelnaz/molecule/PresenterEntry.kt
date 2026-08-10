@@ -2,6 +2,7 @@ package io.github.raheelnaz.molecule
 
 /** A presenter returned by [moleculeViewModel], scoped to the owner it was retrieved from. */
 public class PresenterEntry<VM : MoleculeViewModel<*, *, *>> internal constructor(
+    @get:JvmSynthetic
     internal val viewModel: VM,
 )
 

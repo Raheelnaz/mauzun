@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 public annotation class MoleculeViewModelTestingApi
 
 /** Returns the production effect stream without exposing the ViewModel's produced state. */
+@JvmSynthetic
 @MoleculeViewModelTestingApi
 public fun <Event : Any, Model : Any, Effect : Any>
     MoleculeViewModel<Event, Model, Effect>.effectsForTest(): Flow<Effect> = bindingInstance.effects

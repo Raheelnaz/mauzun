@@ -65,7 +65,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 @MoleculeViewModelAdapterApi
 public fun <VM : MoleculeViewModel<*, *, *>> moleculePresenterEntry(
     key: String?,
-    modelClass: Class<out VM>,
+    modelClass: Class<VM>,
     viewModelStoreOwner: ViewModelStoreOwner,
     extras: CreationExtras,
     viewModel: @Composable () -> VM,
