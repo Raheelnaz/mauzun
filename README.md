@@ -242,11 +242,12 @@ returns the ViewModel, so the first composition can restore values after process
 val viewModel: ProductViewModel = moleculeViewModel()
 ```
 
-Use the helper consistently for a given instance. Reading `state` first and trying to attach saved
-state later throws because the presenter has already started. For the same reason, do not read
-`state` from a constructor or an `init` block; the registry attaches after the ViewModel exists.
-Presenters obtained another way keep Compose's normal fallback from `rememberSaveable` to
-`remember` and can still use an injected `SavedStateHandle` directly.
+Get the ViewModel from the helper every time. Saved state hooks up before the presenter starts,
+so if something read `state` first, the helper throws instead of quietly losing the restored
+values. That is also why a constructor or `init` block must not read `state`.
+
+Skipping the helper breaks nothing: `rememberSaveable` just behaves like `remember`, and an
+injected `SavedStateHandle` still works.
 
 ## Hilt
 
