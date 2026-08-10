@@ -34,6 +34,7 @@ import assertk.assertions.hasMessage
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
+import assertk.assertions.isSameInstanceAs
 import java.io.Serializable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -103,14 +104,17 @@ private class LambdaViewModel : MoleculeViewModel<Int, Int, Nothing>() {
     }
 }
 
-private class EagerViewModel : MoleculeViewModel<Int, Int, Nothing>() {
-    init {
-        @Suppress("LeakingThis")
-        presenterBinding.state
-    }
-
+private class SelfRetrievingViewModel(
+    private val owner: ViewModelStoreOwner,
+) : MoleculeViewModel<Int, Int, Nothing>() {
     @Composable
-    override fun present(events: Flow<Int>): Int = 0
+    override fun present(events: Flow<Int>): Int {
+        moleculeViewModel<SelfRetrievingViewModel>(
+            key = "self",
+            viewModelStoreOwner = owner,
+        )
+        return 0
+    }
 }
 
 private class OwnHandleViewModel(
@@ -166,7 +170,7 @@ private class Host(
 private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.obtain(
     key: String? = null,
     factory: ViewModelProvider.Factory? = null,
-): VM = moleculeFlow(RecompositionMode.Immediate) {
+): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
     moleculeViewModel<VM>(
         key = key,
         viewModelStoreOwner = this@obtain,
@@ -174,15 +178,16 @@ private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.obtain
     )
 }.first()
 
+@OptIn(MoleculeViewModelAdapterApi::class)
 private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.attach(
     viewModel: VM,
     key: String? = null,
-): VM = moleculeFlow(RecompositionMode.Immediate) {
-    moleculeViewModel(
-        viewModel = viewModel,
+): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
+    moleculePresenterEntry(
         key = key,
         viewModelStoreOwner = this@attach,
-    )
+        extras = defaultViewModelCreationExtras,
+    ) { viewModel }
 }.first()
 
 private fun Bundle.parcelled(): Bundle {
@@ -216,9 +221,9 @@ class MoleculeViewModelSavedStateTest {
         runTest(dispatcher) {
             val firstHost = Host()
             val first = firstHost.obtain<SaveableViewModel>(factory = saveableFactory)
-            assertThat(first.presenterBinding.state.value).isEqualTo(0)
+            assertThat(first.binding.state.value).isEqualTo(0)
 
-            first.onEvent(7)
+            first.binding.onEvent(7)
             advanceUntilIdle()
             val saved = firstHost.save().parcelled()
             firstHost.destroy()
@@ -227,7 +232,7 @@ class MoleculeViewModelSavedStateTest {
             val secondHost = Host(saved)
             val second = secondHost.obtain<SaveableViewModel>(factory = saveableFactory)
 
-            assertThat(second.presenterBinding.state.value).isEqualTo(7)
+            assertThat(second.binding.state.value).isEqualTo(7)
             secondHost.viewModelStore.clear()
         }
 
@@ -237,8 +242,8 @@ class MoleculeViewModelSavedStateTest {
             val store = ViewModelStore()
             val firstHost = Host(viewModelStore = store)
             val first = firstHost.obtain<SaveableViewModel>(factory = saveableFactory)
-            first.presenterBinding.state
-            first.onEvent(4)
+            first.binding.state
+            first.binding.onEvent(4)
             advanceUntilIdle()
 
             val saved = firstHost.save().parcelled()
@@ -246,8 +251,8 @@ class MoleculeViewModelSavedStateTest {
             val secondHost = Host(saved, store)
             val second = secondHost.obtain<SaveableViewModel>(factory = saveableFactory)
 
-            assertThat(second).isEqualTo(first)
-            assertThat(second.presenterBinding.state.value).isEqualTo(4)
+            assertThat(second.viewModel).isSameInstanceAs(first.viewModel)
+            assertThat(second.binding.state.value).isEqualTo(4)
             secondHost.viewModelStore.clear()
         }
 
@@ -255,8 +260,8 @@ class MoleculeViewModelSavedStateTest {
     fun `restored state can change and save again`() = runTest(dispatcher) {
         val firstHost = Host()
         val first = firstHost.obtain<SaveableViewModel>(factory = saveableFactory)
-        first.presenterBinding.state
-        first.onEvent(3)
+        first.binding.state
+        first.binding.onEvent(3)
         advanceUntilIdle()
         val firstSaved = firstHost.save().parcelled()
         firstHost.destroy()
@@ -264,8 +269,8 @@ class MoleculeViewModelSavedStateTest {
 
         val secondHost = Host(firstSaved)
         val second = secondHost.obtain<SaveableViewModel>(factory = saveableFactory)
-        assertThat(second.presenterBinding.state.value).isEqualTo(3)
-        second.onEvent(8)
+        assertThat(second.binding.state.value).isEqualTo(3)
+        second.binding.onEvent(8)
         advanceUntilIdle()
         val secondSaved = secondHost.save().parcelled()
         secondHost.destroy()
@@ -274,7 +279,7 @@ class MoleculeViewModelSavedStateTest {
         val thirdHost = Host(secondSaved)
         val third = thirdHost.obtain<SaveableViewModel>(factory = saveableFactory)
 
-        assertThat(third.presenterBinding.state.value).isEqualTo(8)
+        assertThat(third.binding.state.value).isEqualTo(8)
         thirdHost.viewModelStore.clear()
     }
 
@@ -282,11 +287,11 @@ class MoleculeViewModelSavedStateTest {
     fun `the helper is idempotent after the presenter starts`() = runTest(dispatcher) {
         val host = Host()
         val first = host.obtain<SaveableViewModel>(key = "counter", factory = saveableFactory)
-        first.presenterBinding.state
+        first.binding.state
 
-        val second = host.attach(first, key = "counter")
+        val second = host.attach(first.viewModel, key = "counter")
 
-        assertThat(second).isEqualTo(first)
+        assertThat(second.viewModel).isSameInstanceAs(first.viewModel)
         host.viewModelStore.clear()
     }
 
@@ -301,8 +306,8 @@ class MoleculeViewModelSavedStateTest {
 
         val attached = host.obtain<SaveableViewModel>("counter", saveableFactory)
 
-        assertThat(attached).isEqualTo(existing)
-        assertThat(attached.presenterBinding.state.value).isEqualTo(0)
+        assertThat(attached.viewModel).isEqualTo(existing)
+        assertThat(attached.binding.state.value).isEqualTo(0)
         host.viewModelStore.clear()
     }
 
@@ -314,30 +319,30 @@ class MoleculeViewModelSavedStateTest {
             modelClass = SaveableViewModel::class.java,
             factory = saveableFactory,
         )
-        viewModel.presenterBinding.state
+        viewModel.bindingInstance.state
 
         assertFailure { host.obtain<SaveableViewModel>("counter", saveableFactory) }
             .isInstanceOf(IllegalStateException::class)
             .hasMessage(
                 "rememberSaveable state was attached after the presenter started; " +
-                    "obtain this ViewModel with moleculeViewModel() before anything reads " +
-                    "presenterBinding.state, and never read it from an init block",
+                    "obtain the presenter with moleculeViewModel() before its binding starts",
             )
         host.viewModelStore.clear()
     }
 
     @Test
-    fun `an init block that reads state trips the guard`() = runTest(dispatcher) {
+    fun `retrieval from inside present is rejected`() = runTest(dispatcher) {
         val host = Host()
-        val factory = viewModelFactory { initializer { EagerViewModel() } }
+        val ownerThatMustNotBeRead = object : ViewModelStoreOwner {
+            override val viewModelStore: ViewModelStore
+                get() = error("the ViewModelStore was touched")
+        }
+        val viewModel = SelfRetrievingViewModel(ownerThatMustNotBeRead)
+        host.viewModelStore.put("presenter", viewModel)
 
-        val outcome = runCatching { host.obtain<EagerViewModel>(factory = factory) }
-
-        val named = generateSequence(outcome.exceptionOrNull()) { it.cause }
-            .firstOrNull { it.message?.startsWith("rememberSaveable state was attached") == true }
-        assertThat(named)
-            .isNotNull()
+        assertFailure { viewModel.bindingInstance.state }
             .isInstanceOf(IllegalStateException::class)
+            .hasMessage("moleculeViewModel() cannot be called from MoleculeViewModel.present()")
         host.viewModelStore.clear()
     }
 
@@ -360,10 +365,10 @@ class MoleculeViewModelSavedStateTest {
         val firstHost = Host()
         val first = firstHost.obtain<SaveableViewModel>("first", saveableFactory)
         val second = firstHost.obtain<SaveableViewModel>("second", saveableFactory)
-        first.presenterBinding.state
-        second.presenterBinding.state
-        first.onEvent(3)
-        second.onEvent(9)
+        first.binding.state
+        second.binding.state
+        first.binding.onEvent(3)
+        second.binding.onEvent(9)
         advanceUntilIdle()
 
         val saved = firstHost.save().parcelled()
@@ -373,8 +378,8 @@ class MoleculeViewModelSavedStateTest {
         val restoredFirst = secondHost.obtain<SaveableViewModel>("first", saveableFactory)
         val restoredSecond = secondHost.obtain<SaveableViewModel>("second", saveableFactory)
 
-        assertThat(restoredFirst.presenterBinding.state.value).isEqualTo(3)
-        assertThat(restoredSecond.presenterBinding.state.value).isEqualTo(9)
+        assertThat(restoredFirst.binding.state.value).isEqualTo(3)
+        assertThat(restoredSecond.binding.state.value).isEqualTo(9)
         secondHost.viewModelStore.clear()
     }
 
@@ -383,8 +388,8 @@ class MoleculeViewModelSavedStateTest {
         val factory = viewModelFactory { initializer { FiltersViewModel() } }
         val firstHost = Host()
         val first = firstHost.obtain<FiltersViewModel>(factory = factory)
-        first.presenterBinding.state
-        first.onEvent("vegan")
+        first.binding.state
+        first.binding.onEvent("vegan")
         advanceUntilIdle()
 
         val saved = firstHost.save().parcelled()
@@ -393,7 +398,7 @@ class MoleculeViewModelSavedStateTest {
         val secondHost = Host(saved)
         val second = secondHost.obtain<FiltersViewModel>(factory = factory)
 
-        assertThat(second.presenterBinding.state.value).isEqualTo(Filters("vegan"))
+        assertThat(second.binding.state.value).isEqualTo(Filters("vegan"))
         secondHost.viewModelStore.clear()
     }
 
@@ -402,8 +407,8 @@ class MoleculeViewModelSavedStateTest {
         val factory = viewModelFactory { initializer { TwoFieldViewModel() } }
         val firstHost = Host()
         val first = firstHost.obtain<TwoFieldViewModel>(factory = factory)
-        first.presenterBinding.state
-        first.onEvent(5)
+        first.binding.state
+        first.binding.onEvent(5)
         advanceUntilIdle()
 
         val saved = firstHost.save().parcelled()
@@ -412,7 +417,7 @@ class MoleculeViewModelSavedStateTest {
         val secondHost = Host(saved)
         val second = secondHost.obtain<TwoFieldViewModel>(factory = factory)
 
-        assertThat(second.presenterBinding.state.value).isEqualTo(5 to "n5")
+        assertThat(second.binding.state.value).isEqualTo(5 to "n5")
         secondHost.viewModelStore.clear()
     }
 
@@ -423,9 +428,9 @@ class MoleculeViewModelSavedStateTest {
         }
         val firstHost = Host()
         val first = firstHost.obtain<OwnHandleViewModel>(factory = factory)
-        first.handle["selected-id"] = 42
-        first.presenterBinding.state
-        first.onEvent(6)
+        first.viewModel.handle["selected-id"] = 42
+        first.binding.state
+        first.binding.onEvent(6)
         advanceUntilIdle()
 
         val saved = firstHost.save().parcelled()
@@ -434,8 +439,8 @@ class MoleculeViewModelSavedStateTest {
         val secondHost = Host(saved)
         val second = secondHost.obtain<OwnHandleViewModel>(factory = factory)
 
-        assertThat(second.handle.get<Int>("selected-id")).isEqualTo(42)
-        assertThat(second.presenterBinding.state.value).isEqualTo(6)
+        assertThat(second.viewModel.handle.get<Int>("selected-id")).isEqualTo(42)
+        assertThat(second.binding.state.value).isEqualTo(6)
         secondHost.viewModelStore.clear()
     }
 
@@ -444,7 +449,7 @@ class MoleculeViewModelSavedStateTest {
         val store = ViewModelStore()
         val viewModel = OpaqueViewModel().also { store.put("target", it) }
 
-        assertThat(viewModel.presenterBinding.state.value).isEqualTo(0)
+        assertThat(viewModel.bindingInstance.state.value).isEqualTo(0)
         store.clear()
     }
 
@@ -454,7 +459,7 @@ class MoleculeViewModelSavedStateTest {
         val factory = viewModelFactory { initializer { OpaqueViewModel() } }
         val viewModel = host.obtain<OpaqueViewModel>(factory = factory)
 
-        assertFailure { viewModel.presenterBinding.state }.isInstanceOf(IllegalArgumentException::class)
+        assertFailure { viewModel.binding.state }.isInstanceOf(IllegalArgumentException::class)
         host.viewModelStore.clear()
     }
 
@@ -464,7 +469,7 @@ class MoleculeViewModelSavedStateTest {
         val factory = viewModelFactory { initializer { LambdaViewModel() } }
         val viewModel = host.obtain<LambdaViewModel>(factory = factory)
 
-        assertFailure { viewModel.presenterBinding.state }.isInstanceOf(IllegalArgumentException::class)
+        assertFailure { viewModel.binding.state }.isInstanceOf(IllegalArgumentException::class)
         host.viewModelStore.clear()
     }
 
@@ -490,7 +495,7 @@ class MoleculeViewModelSavedStateTest {
     fun `a rejected key leaves other holders untouched`() = runTest(dispatcher) {
         val host = Host()
         val screen = host.obtain<SaveableViewModel>("screen", saveableFactory)
-        screen.presenterBinding.state
+        screen.binding.state
 
         runCatching {
             host.obtain<SaveableViewModel>(
@@ -499,9 +504,9 @@ class MoleculeViewModelSavedStateTest {
             )
         }
 
-        // Recomposition retrieves the same presenter again; a replaced holder would throw here.
+        // A replaced holder would make this second retrieval throw.
         val again = host.obtain<SaveableViewModel>("screen", saveableFactory)
-        assertThat(again).isEqualTo(screen)
+        assertThat(again.viewModel).isSameInstanceAs(screen.viewModel)
         host.viewModelStore.clear()
     }
 

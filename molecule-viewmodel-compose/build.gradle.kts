@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.raheelnaz.molecule.test"
+    namespace = "io.github.raheelnaz.molecule.compose"
     compileSdk = 36
 
     defaultConfig {
@@ -19,9 +19,6 @@ android {
     buildFeatures {
         compose = true
     }
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
 }
 
 kotlin {
@@ -32,13 +29,9 @@ kotlin {
 }
 
 dependencies {
-    api(project(":molecule-viewmodel"))
-    api(libs.kotlinx.coroutines.core)
+    api(project(":molecule-viewmodel-api"))
+    api(libs.androidx.compose.runtime)
+    api(libs.androidx.lifecycle.runtime.compose)
 
-    implementation(libs.molecule.runtime)
-    implementation(libs.turbine)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.assertk)
-    testImplementation(libs.kotlinx.coroutines.test)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
 }

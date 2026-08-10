@@ -5,12 +5,12 @@
 
 Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
 
-`MoleculeViewModel` runs a composable presenter in `viewModelScope`, exposes its models as a
-`StateFlow`, and provides channels for UI events and one-time effects. The test artifact runs the
-same presenter directly on the JVM.
+`MoleculeViewModel` runs a composable presenter in `viewModelScope`. Retrieval returns a
+`PresenterEntry` whose `PresenterBinding` exposes models as a `StateFlow`, accepts UI events, and
+delivers one-time effects. The test artifact runs the same presenter directly on the JVM.
 
 Inside the presenter, use `remember`, `collectAsState`, and Compose effects. Outside it, the screen
-sees an ordinary ViewModel.
+sees only the binding contract.
 
 ## Quick start
 
@@ -36,10 +36,10 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 Render it from Compose:
 
 ```kotlin
-val viewModel: CounterViewModel = moleculeViewModel()
+val presenter = moleculeViewModel<CounterViewModel>()
 
 PresenterHost(
-    viewModel = viewModel,
+    presenter = presenter,
     onEffect = { effect ->
         when (effect) {
             is CounterEffect.OpenShareSheet -> shareSheet.open(effect.count)
@@ -88,8 +88,14 @@ implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.7.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
-module that subclasses `MoleculeViewModel`. `molecule-viewmodel-api` arrives transitively. Depend
-on it directly from a module that only needs the `PresenterBinding` contract.
+module that subclasses `MoleculeViewModel`.
+
+`molecule-viewmodel-api` and `molecule-viewmodel-compose` arrive transitively with the main
+artifact. A UI module that receives a `PresenterBinding` can depend on the Compose host alone:
+
+```kotlin
+implementation("io.github.raheelnaz:molecule-viewmodel-compose:0.8.0")
+```
 
 Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test
 paths, so enable default Android return values:
@@ -112,14 +118,33 @@ android {
 
 ### Models
 
-The molecule starts when the binding's `state` is first read. `RecompositionMode.Immediate`
+The molecule starts when an entry's binding `state` is first read. `RecompositionMode.Immediate`
 produces the first model during that read, so `state.value` is available as soon as the getter
 returns. That first composition runs on whichever thread reads `state` first, so make the first
 read on Main. Later models are conflated by equality, like any other `StateFlow`.
 
-The ViewModel does not expose `state` or `effects`. They live on `presenterBinding`, one
-instance per ViewModel, and `PresenterHost` reads it for you when handed the ViewModel. A
-screen in a module that only knows the contract takes the binding as a parameter.
+The ViewModel does not expose `state`, `effects`, or its binding. `moleculeViewModel()` returns a
+`PresenterEntry`, and `PresenterHost` reads the entry's binding for you. The entry does not
+expose the underlying ViewModel.
+
+At a module boundary, pass only the binding:
+
+```kotlin
+// app module
+val presenter = moleculeViewModel<ProductViewModel>()
+ProductUi(presenter.binding)
+
+// feature UI module
+@Composable
+fun ProductUi(binding: PresenterBinding<ProductEvent, ProductState, ProductEffect>) {
+    PresenterHost(binding, onEffect = ::handleEffect) { state, onEvent ->
+        ProductScreen(state, onEvent)
+    }
+}
+```
+
+`ProductUi` can live in a module that depends on `molecule-viewmodel-compose` instead of the
+ViewModel runtime.
 
 ### Events
 
@@ -170,7 +195,7 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | Effects | One collector, buffered while the screen is stopped |
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
 | Effect overflow | Throws when the 50 slot queue is full |
-| First read of `presenterBinding.state` | Composes synchronously on the calling thread |
+| First read of an entry's `binding.state` | Composes synchronously on the calling thread |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
 | A `CollectEvents` block that throws | Cancellation ends that collector, anything else ends the presenter |
 
@@ -212,7 +237,7 @@ stops the presenter and reaches the uncaught exception handler.
 Set `effectsMinActiveState = Lifecycle.State.RESUMED` when an effect must wait until a navigation
 transition finishes.
 
-`PresenterHost` controls collection in the UI. It does not pause the presenter itself; the molecule
+`PresenterHost` controls collection in the UI. It does not pause the presenter itself. The molecule
 runs until the ViewModel is cleared.
 
 ## Testing
@@ -235,30 +260,29 @@ viewModel.test {
 another dispatcher still finishes asynchronously.
 
 The harness fails when the block returns with an unconsumed model or effect. Drive it with
-`sendEvent`; calling `viewModel.onEvent` writes to the production queue, which the harness does not
+`sendEvent`. Calling `viewModel.onEvent` writes to the production queue, which the harness does not
 read.
 
 ## Saved state
 
 `moleculeViewModel()` lets a presenter use `rememberSaveable`. It installs saved state before it
-returns the ViewModel, so the first composition can restore values after process recreation.
+returns the entry, so the first composition can restore values after process recreation.
 
 ```kotlin
-val viewModel: ProductViewModel = moleculeViewModel()
+val presenter = moleculeViewModel<ProductViewModel>()
 ```
 
-Get the ViewModel from the helper every time. Saved state hooks up before the presenter starts,
-so if something read the binding's `state` first, the helper throws instead of quietly losing
-the restored values. That is also why a constructor or `init` block must not read it.
-
-Skipping the helper breaks nothing: `rememberSaveable` just behaves like `remember`, and an
-injected `SavedStateHandle` still works.
+The entry is the only supported production route to the binding. Saved state therefore attaches
+before UI code can start the presenter. A `MoleculeViewModel` subclass cannot read its own produced
+state, including from its constructor, `init` block, or `present` function. An injected
+`SavedStateHandle` remains available for application state that does not belong in
+`rememberSaveable`.
 
 ## Hilt
 
-Hilt is optional. Use `hiltMoleculeViewModel()` instead of `hiltViewModel()` to install the same
-saved-state support while Hilt creates the ViewModel. The adapter passes the same owner and key to
-both integrations.
+Hilt is optional. Use `hiltMoleculeViewModel()` instead of `hiltViewModel()` to obtain the same
+entry while Hilt creates the ViewModel. The adapter passes the same owner and key to both
+integrations.
 
 Add `@HiltViewModel` to the concrete class. A screen that takes an argument uses an assisted
 factory:
@@ -281,10 +305,19 @@ class ProductViewModel @AssistedInject constructor(
 ```
 
 ```kotlin
-val viewModel = hiltMoleculeViewModel<ProductViewModel, ProductViewModel.Factory>(
+val presenter = hiltMoleculeViewModel<ProductViewModel, ProductViewModel.Factory>(
     creationCallback = { factory -> factory.create(productId) },
 )
 ```
+
+Assisted parameters are not saved by Hilt or this adapter. Reconstruct values needed after process
+death from navigation state or a `SavedStateHandle`, and persist identifiers rather than object
+instances.
+
+Other DI adapters can opt in to `MoleculeViewModelAdapterApi` and call
+`moleculePresenterEntry(...) { /* retrieve the ViewModel here */ }`. The retrieval belongs inside
+the callback so the library can reject an attempt to retrieve an entry from `present()` before the
+`ViewModelStore` is touched.
 
 ## Navigation 3
 
@@ -309,7 +342,7 @@ Compose UI frame clock.
 The saved-state integration uses a private holder ViewModel. Concrete presenters keep their
 no-argument base constructor.
 
-The project is pre-1.0. Minor releases may change the public API; see [CHANGELOG.md](CHANGELOG.md)
+The project is pre-1.0. Minor releases may change the public API. See [CHANGELOG.md](CHANGELOG.md)
 before upgrading.
 
 Molecule is maintained by [Cash App](https://github.com/cashapp/molecule). This project provides

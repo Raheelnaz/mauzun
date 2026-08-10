@@ -5,7 +5,8 @@ import app.cash.molecule.moleculeFlow
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.turbineScope
 import io.github.raheelnaz.molecule.MoleculeViewModel
-import io.github.raheelnaz.molecule.presenterBinding
+import io.github.raheelnaz.molecule.MoleculeViewModelTestingApi
+import io.github.raheelnaz.molecule.effectsForTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.shareIn
  * distinct, and the test fails if a model or effect is left unconsumed. Send events through the
  * test scope rather than [MoleculeViewModel.onEvent].
  */
+@OptIn(MoleculeViewModelTestingApi::class)
 public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Event, Model, Effect>.test(
     validate: suspend MoleculeTestScope<Event, Model, Effect>.() -> Unit,
 ): Unit = turbineScope {
@@ -34,7 +36,7 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MoleculeViewModel<Ev
     val eventsScope = CoroutineScope(currentCoroutineContext() + eventsJob + Dispatchers.Unconfined)
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
-    val effectsTurbine = presenterBinding.effects.testIn(this)
+    val effectsTurbine = effectsForTest().testIn(this)
     val stateTurbine = moleculeFlow(RecompositionMode.Immediate) { present(eventsFlow) }
         // Match StateFlow's equality-based conflation.
         .distinctUntilChanged()

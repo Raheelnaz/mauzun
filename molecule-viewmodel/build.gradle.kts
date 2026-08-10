@@ -33,6 +33,7 @@ kotlin {
 
 dependencies {
     api(project(":molecule-viewmodel-api"))
+    api(project(":molecule-viewmodel-compose"))
     api(libs.androidx.compose.runtime)
     api(libs.androidx.compose.runtime.saveable)
     api(libs.androidx.lifecycle.viewmodel.compose)
@@ -41,7 +42,6 @@ dependencies {
 
     implementation(libs.molecule.runtime)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.savedstate)
 
     testImplementation(libs.assertk)
@@ -49,4 +49,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    testImplementation(libs.turbine)
 }

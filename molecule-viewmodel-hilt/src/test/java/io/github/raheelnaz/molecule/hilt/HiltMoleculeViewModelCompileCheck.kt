@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import assertk.assertFailure
 import assertk.assertions.isInstanceOf
 import io.github.raheelnaz.molecule.MoleculeViewModel
+import io.github.raheelnaz.molecule.PresenterEntry
 import kotlinx.coroutines.flow.Flow
 import org.junit.Test
 
@@ -19,11 +20,12 @@ private class CompileCheckFactory
 
 @Composable
 @Suppress("unused")
-private fun plainShape(): CompileCheckViewModel = hiltMoleculeViewModel(key = "compile-check")
+private fun plainShape(): PresenterEntry<CompileCheckViewModel> =
+    hiltMoleculeViewModel(key = "compile-check")
 
 @Composable
 @Suppress("unused")
-private fun assistedShape(): CompileCheckViewModel =
+private fun assistedShape(): PresenterEntry<CompileCheckViewModel> =
     hiltMoleculeViewModel<CompileCheckViewModel, CompileCheckFactory>(
         creationCallback = { _ -> error("compile only") },
     )

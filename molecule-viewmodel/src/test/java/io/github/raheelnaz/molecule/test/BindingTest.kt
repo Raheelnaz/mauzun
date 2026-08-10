@@ -7,7 +7,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isSameInstanceAs
 import io.github.raheelnaz.molecule.MoleculeViewModel
-import io.github.raheelnaz.molecule.presenterBinding
+import io.github.raheelnaz.molecule.binding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +50,7 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        assertThat(vm.presenterBinding).isSameInstanceAs(vm.presenterBinding)
+        assertThat(vm.testEntry().binding).isSameInstanceAs(vm.testEntry().binding)
     }
 
     @Test
@@ -58,10 +58,11 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        vm.presenterBinding.effects
+        val entry = vm.testEntry()
+        entry.binding.effects
         assertThat(vm.compositions).isEqualTo(0)
 
-        vm.presenterBinding.state
+        entry.binding.state
         assertThat(vm.compositions).isEqualTo(1)
     }
 
@@ -70,10 +71,11 @@ class BindingTest {
         val vm = CountingCompositionsViewModel()
         store.put("vm", vm)
 
-        vm.presenterBinding.onEvent(7)
+        val entry = vm.testEntry()
+        entry.binding.onEvent(7)
         assertThat(vm.compositions).isEqualTo(0)
 
-        vm.presenterBinding.state
+        entry.binding.state
         dispatcher.scheduler.advanceUntilIdle()
         assertThat(vm.compositions).isEqualTo(1)
         assertThat(vm.received).containsExactly(7)
