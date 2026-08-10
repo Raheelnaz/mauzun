@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.8.0] - 2026-08-10
 
 - `moleculeViewModel()` and `hiltMoleculeViewModel()` return a `PresenterEntry` instead of the
   ViewModel. The entry exposes the binding without exposing the ViewModel, so a subclass has no

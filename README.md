@@ -281,31 +281,90 @@ state, including from its constructor, `init` block, or `present` function. An i
 ## Hilt
 
 Hilt is optional. Use `hiltMoleculeViewModel()` instead of `hiltViewModel()` to obtain the same
-entry while Hilt creates the ViewModel. The adapter passes the same owner and key to both
-integrations.
+entry while Hilt creates the ViewModel. Constructor injection, assisted injection, scoping, and
+`SavedStateHandle` all work the way Hilt users expect.
 
-Add `@HiltViewModel` to the concrete class. A screen that takes an argument uses an assisted
-factory:
+### Constructor injection
+
+Add `@HiltViewModel` to an ordinary constructor-injected class:
 
 ```kotlin
-@HiltViewModel(assistedFactory = ProductViewModel.Factory::class)
-class ProductViewModel @AssistedInject constructor(
-    @Assisted private val productId: String,
+@HiltViewModel
+class ProductListViewModel @Inject constructor(
     private val repository: ProductRepository,
-) : MoleculeViewModel<ProductEvent, ProductState, ProductEffect>() {
-
-    @AssistedFactory
-    interface Factory {
-        fun create(productId: String): ProductViewModel
-    }
+) : MoleculeViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
 
     @Composable
-    override fun present(events: Flow<ProductEvent>): ProductState = TODO()
+    override fun present(events: Flow<ProductListEvent>): ProductListState = TODO()
 }
 ```
 
+Retrieve and render it from the destination:
+
 ```kotlin
-val presenter = hiltMoleculeViewModel<ProductViewModel, ProductViewModel.Factory>(
+@Composable
+fun ProductListRoute(onOpenProduct: (String) -> Unit) {
+    val presenter = hiltMoleculeViewModel<ProductListViewModel>()
+
+    PresenterHost(
+        presenter = presenter,
+        onEffect = { effect ->
+            when (effect) {
+                is ProductListEffect.OpenProduct -> onOpenProduct(effect.productId)
+            }
+        },
+    ) { state, onEvent ->
+        ProductListScreen(state, onEvent)
+    }
+}
+```
+
+The route turns effects into app actions, like pushing the next back stack key.
+
+### SavedStateHandle
+
+Inject a `SavedStateHandle` normally when you want one:
+
+```kotlin
+@HiltViewModel
+class SearchViewModel @Inject constructor(
+    private val repository: SearchRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : MoleculeViewModel<SearchEvent, SearchState, SearchEffect>() {
+
+    @Composable
+    override fun present(events: Flow<SearchEvent>): SearchState = TODO()
+}
+```
+
+`rememberSaveable` does not need it. Use `SavedStateHandle` for state that outlives the
+presenter, and `rememberSaveable` for state the presenter owns.
+
+### Assisted injection
+
+Use assisted injection when the ViewModel needs a runtime argument:
+
+```kotlin
+@HiltViewModel(assistedFactory = ProductDetailsViewModel.Factory::class)
+class ProductDetailsViewModel @AssistedInject constructor(
+    @Assisted private val productId: String,
+    private val repository: ProductRepository,
+) : MoleculeViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(productId: String): ProductDetailsViewModel
+    }
+
+    @Composable
+    override fun present(events: Flow<ProductDetailsEvent>): ProductDetailsState = TODO()
+}
+```
+
+Pass the assisted value at retrieval:
+
+```kotlin
+val presenter = hiltMoleculeViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory>(
     creationCallback = { factory -> factory.create(productId) },
 )
 ```
@@ -314,21 +373,67 @@ Assisted parameters are not saved by Hilt or this adapter. Reconstruct values ne
 death from navigation state or a `SavedStateHandle`, and persist identifiers rather than object
 instances.
 
-Other DI adapters can opt in to `MoleculeViewModelAdapterApi` and call
-`moleculePresenterEntry(...) { /* retrieve the ViewModel here */ }`. The retrieval belongs inside
-the callback so the library can reject an attempt to retrieve an entry from `present()` before the
-`ViewModelStore` is touched.
+### Scoping and keys
+
+`hiltMoleculeViewModel()` uses `LocalViewModelStoreOwner` by default. Under Navigation 3's
+ViewModelStore decorator that owner is the destination, so the ViewModel lives while its entry is
+on the back stack and clears when the entry is removed. Pass `viewModelStoreOwner` for a different
+scope, and a `key` when several presenters of one class share an owner.
+
+Presenter unit tests do not need Hilt. Construct the ViewModel with fake dependencies and use the
+test harness directly.
 
 ## Navigation 3
 
-Include the ViewModelStore decorator so each back-stack entry owns its ViewModel:
+Navigation 3 keeps the back stack as state you own. Give each destination a serializable key:
 
 ```kotlin
-entryDecorators = listOf(
-    rememberSaveableStateHolderNavEntryDecorator(),
-    rememberViewModelStoreNavEntryDecorator(),
-)
+@Serializable
+data object Products : NavKey
+
+@Serializable
+data class ProductDetails(val productId: String) : NavKey
 ```
+
+Include the saveable-state and ViewModelStore decorators so each entry owns its ViewModel:
+
+```kotlin
+@Composable
+fun AppNavigation() {
+    val backStack = rememberNavBackStack(Products)
+
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        entryProvider = { key ->
+            when (key) {
+                Products -> NavEntry(key) {
+                    ProductListRoute(
+                        onOpenProduct = { backStack.add(ProductDetails(it)) },
+                    )
+                }
+                is ProductDetails -> NavEntry(key) {
+                    ProductDetailsRoute(
+                        productId = key.productId,
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                else -> error("Unknown navigation key: $key")
+            }
+        },
+    )
+}
+```
+
+No explicit ViewModel key is needed when each destination has its own owner.
+
+`rememberNavBackStack` restores its keys after configuration changes and process death. A restored
+`ProductDetails` hands its `productId` to the assisted factory again when the destination is
+recreated.
 
 The library does not define a navigation API. Navigation can stay in the UI or be handled as an
 effect, depending on the application.
