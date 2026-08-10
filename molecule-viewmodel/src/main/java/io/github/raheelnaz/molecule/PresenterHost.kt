@@ -10,6 +10,33 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 
 /**
+ * Renders [content] from [binding] and handles effects while the lifecycle is at least
+ * [effectsMinActiveState].
+ */
+@Composable
+public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
+    binding: PresenterBinding<Event, Model, Effect>,
+    onEffect: suspend (Effect) -> Unit,
+    effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
+) {
+    require(effectsMinActiveState.isAtLeast(Lifecycle.State.CREATED)) {
+        "effectsMinActiveState must be CREATED, STARTED, or RESUMED"
+    }
+    val state by binding.state.collectAsStateWithLifecycle()
+    val currentOnEffect by rememberUpdatedState(onEffect)
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(binding, lifecycleOwner, effectsMinActiveState) {
+        lifecycleOwner.repeatOnLifecycle(effectsMinActiveState) {
+            binding.effects.collect { currentOnEffect(it) }
+        }
+    }
+
+    content(state, binding::onEvent)
+}
+
+/**
  * Renders [content] from [presenter] and handles effects while the lifecycle is at least
  * [effectsMinActiveState].
  */

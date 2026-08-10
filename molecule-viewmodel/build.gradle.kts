@@ -32,6 +32,7 @@ kotlin {
 }
 
 dependencies {
+    api(project(":molecule-viewmodel-api"))
     api(libs.androidx.compose.runtime)
     api(libs.androidx.compose.runtime.saveable)
     api(libs.androidx.lifecycle.viewmodel.compose)
