@@ -1,3 +1,6 @@
+// The dash keeps Java callers away from the published internals below.
+@file:JvmName("-MoleculeViewModelProvider")
+
 package io.github.raheelnaz.molecule
 
 import androidx.compose.runtime.Composable
@@ -26,7 +29,11 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
             "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
         },
     factory: ViewModelProvider.Factory? = null,
-    extras: CreationExtras = viewModelStoreOwner.defaultCreationExtras(),
+    extras: CreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
+        viewModelStoreOwner.defaultViewModelCreationExtras
+    } else {
+        CreationExtras.Empty
+    },
 ): VM {
     val presenter = androidxViewModel<VM>(
         viewModelStoreOwner = viewModelStoreOwner,
@@ -54,26 +61,21 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
         checkNotNull(LocalViewModelStoreOwner.current) {
             "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
         },
-    extras: CreationExtras = viewModelStoreOwner.defaultCreationExtras(),
+    extras: CreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
+        viewModelStoreOwner.defaultViewModelCreationExtras
+    } else {
+        CreationExtras.Empty
+    },
 ): VM = attachMoleculeSavedState(
     viewModel = viewModel,
-    viewModelKey = key ?: defaultViewModelKey(VM::class.java),
+    key = key,
+    modelClass = VM::class.java,
     viewModelStoreOwner = viewModelStoreOwner,
     extras = extras,
 )
 
-// The same fallback androidx's viewModel() uses when the owner has no factory support.
-@PublishedApi
-internal fun ViewModelStoreOwner.defaultCreationExtras(): CreationExtras =
-    if (this is HasDefaultViewModelProviderFactory) {
-        defaultViewModelCreationExtras
-    } else {
-        CreationExtras.Empty
-    }
-
 // Prefixed so a derived key can never collide with an explicit one.
-@PublishedApi
-internal fun defaultViewModelKey(modelClass: Class<*>): String {
+private fun defaultViewModelKey(modelClass: Class<*>): String {
     val canonicalName = modelClass.canonicalName
         ?: throw IllegalArgumentException("Local and anonymous classes can not be ViewModels")
     return "io.github.raheelnaz.molecule.default-key:$canonicalName"
@@ -107,10 +109,12 @@ private val presenterSavedStateHolderFactory = viewModelFactory {
 @PublishedApi
 internal fun <VM : MoleculeViewModel<*, *, *>> attachMoleculeSavedState(
     viewModel: VM,
-    viewModelKey: String,
+    key: String?,
+    modelClass: Class<out VM>,
     viewModelStoreOwner: ViewModelStoreOwner,
     extras: CreationExtras,
 ): VM {
+    val viewModelKey = key ?: defaultViewModelKey(modelClass)
     // A presenter keyed under this prefix would replace another screen's holder, and that
     // screen's saved state would be lost.
     require(!viewModelKey.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {
