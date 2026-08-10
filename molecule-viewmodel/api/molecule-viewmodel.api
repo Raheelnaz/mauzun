@@ -39,6 +39,6 @@ public final class io/github/raheelnaz/molecule/PresenterEntryKt {
 }
 
 public final class io/github/raheelnaz/molecule/PresenterHostKt {
-	public static final fun PresenterHost (Lio/github/raheelnaz/molecule/PresenterEntry;Lkotlin/jvm/functions/Function2;Landroidx/lifecycle/Lifecycle$State;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
+	public static final fun PresenterHost (Lio/github/raheelnaz/molecule/PresenterEntry;Lkotlin/jvm/functions/Function2;Landroidx/lifecycle/Lifecycle$State;ZLkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 }
 

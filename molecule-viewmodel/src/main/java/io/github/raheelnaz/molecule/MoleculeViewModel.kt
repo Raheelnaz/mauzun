@@ -5,7 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
 import app.cash.molecule.launchMolecule
@@ -39,6 +41,13 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     private val startLock = Any()
     private var presenterSavedState: PresenterSavedState? = null
 
+    // Resumed until a host drives it, so a presenter nobody drives behaves like today.
+    private val presenterLifecycle = PresenterLifecycleOwner()
+
+    internal fun movePresenterToState(next: Lifecycle.State) {
+        presenterLifecycle.moveToState(next)
+    }
+
     // Immediate makes state.value available on the first read. The lazy and attachSavedState
     // share startLock, so an attach cannot race the first read.
     private val state: StateFlow<Model> by lazy(startLock) {
@@ -63,14 +72,16 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
                 mode = RecompositionMode.Immediate,
                 context = Dispatchers.Main,
             ) {
-                withCompositionLocal(LocalPresenterComposition provides true) {
-                    if (savedState == null) {
-                        present(events)
-                    } else {
-                        withCompositionLocal(
-                            LocalSaveableStateRegistry provides savedState.registry,
-                        ) {
+                withCompositionLocal(LocalLifecycleOwner provides presenterLifecycle) {
+                    withCompositionLocal(LocalPresenterComposition provides true) {
+                        if (savedState == null) {
                             present(events)
+                        } else {
+                            withCompositionLocal(
+                                LocalSaveableStateRegistry provides savedState.registry,
+                            ) {
+                                present(events)
+                            }
                         }
                     }
                 }

@@ -2,6 +2,7 @@ package io.github.raheelnaz.molecule.test
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +16,7 @@ import app.cash.molecule.moleculeFlow
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.hasMessage
+import assertk.assertions.isEqualTo
 import assertk.assertions.isEmpty
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
@@ -45,6 +47,14 @@ private class EchoHostViewModel : MoleculeViewModel<Int, Int, Nothing>() {
         var n by remember { mutableStateOf(0) }
         CollectEvents(events) { n = it }
         return n
+    }
+}
+
+private class LifecycleEchoHostViewModel : MoleculeViewModel<Int, Lifecycle.State, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Lifecycle.State {
+        val state by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+        return state
     }
 }
 
@@ -287,5 +297,58 @@ class PresenterHostTest {
                 .isInstanceOf(IllegalArgumentException::class)
                 .hasMessage("effectsMinActiveState must be CREATED, STARTED, or RESUMED")
         }
+    }
+
+    @Test
+    fun `the host drives the presenter lifecycle`() = runTest(dispatcher) {
+        val store = ViewModelStore()
+        val vm = LifecycleEchoHostViewModel()
+        store.put("vm", vm)
+        val owner = TestLifecycleOwner(Lifecycle.State.RESUMED, dispatcher)
+
+        host(owner) {
+            PresenterHost(presenter = vm.testEntry(), onEffect = {}) { _, _ -> }
+        }
+        val state = vm.testBinding.state
+        runCurrent()
+        assertThat(state.value).isEqualTo(Lifecycle.State.RESUMED)
+
+        owner.currentState = Lifecycle.State.CREATED
+        runCurrent()
+        assertThat(state.value).isEqualTo(Lifecycle.State.CREATED)
+
+        owner.currentState = Lifecycle.State.RESUMED
+        runCurrent()
+        assertThat(state.value).isEqualTo(Lifecycle.State.RESUMED)
+
+        owner.currentState = Lifecycle.State.DESTROYED
+        runCurrent()
+        assertThat(state.value).isEqualTo(Lifecycle.State.CREATED)
+
+        store.clear()
+    }
+
+    @Test
+    fun `drivePresenterLifecycle false leaves the presenter resumed`() = runTest(dispatcher) {
+        val store = ViewModelStore()
+        val vm = LifecycleEchoHostViewModel()
+        store.put("vm", vm)
+        val owner = TestLifecycleOwner(Lifecycle.State.RESUMED, dispatcher)
+
+        host(owner) {
+            PresenterHost(
+                presenter = vm.testEntry(),
+                onEffect = {},
+                drivePresenterLifecycle = false,
+            ) { _, _ -> }
+        }
+        val state = vm.testBinding.state
+        runCurrent()
+
+        owner.currentState = Lifecycle.State.CREATED
+        runCurrent()
+        assertThat(state.value).isEqualTo(Lifecycle.State.RESUMED)
+
+        store.clear()
     }
 }

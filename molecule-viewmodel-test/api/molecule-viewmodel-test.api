@@ -1,5 +1,6 @@
 public final class io/github/raheelnaz/molecule/test/MoleculeTestHarnessKt {
-	public static final fun test (Lio/github/raheelnaz/molecule/MoleculeViewModel;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun test (Lio/github/raheelnaz/molecule/MoleculeViewModel;Landroidx/lifecycle/Lifecycle$State;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun test$default (Lio/github/raheelnaz/molecule/MoleculeViewModel;Landroidx/lifecycle/Lifecycle$State;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class io/github/raheelnaz/molecule/test/MoleculeTestScope {
@@ -9,6 +10,7 @@ public final class io/github/raheelnaz/molecule/test/MoleculeTestScope {
 	public final fun awaitState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun expectNoEffects ()V
 	public final fun expectNoStateChanges ()V
+	public final fun moveToState (Landroidx/lifecycle/Lifecycle$State;)V
 	public final fun sendEvent (Ljava/lang/Object;)V
 	public final fun skipStates (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
