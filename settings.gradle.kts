@@ -23,4 +23,9 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "molecule-viewmodel"
-include(":molecule-viewmodel", ":molecule-viewmodel-hilt", ":molecule-viewmodel-test")
+include(
+    ":molecule-viewmodel",
+    ":molecule-viewmodel-api",
+    ":molecule-viewmodel-hilt",
+    ":molecule-viewmodel-test",
+)
