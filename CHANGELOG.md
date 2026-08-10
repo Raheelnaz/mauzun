@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.7.0] - 2026-08-10
 
 - New molecule-viewmodel-api artifact with the `PresenterBinding` contract: state, effects,
   onEvent, and nothing Android. A UI module can depend on it alone.

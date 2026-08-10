@@ -77,14 +77,14 @@ UI ──────────────────▶ present() ───
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.6.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.6.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.7.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.7.0")
 ```
 
 Hilt users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.6.0")
+implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.7.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
