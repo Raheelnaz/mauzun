@@ -5,6 +5,7 @@ import androidx.compose.runtime.InternalComposeApi
 import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.currentComposer
 
+// CompositionLocalProvider returns Unit, and the molecule needs the model back.
 @Composable
 @OptIn(InternalComposeApi::class)
 internal fun <T> withCompositionLocal(
