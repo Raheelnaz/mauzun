@@ -36,29 +36,3 @@ public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
     content(state, binding::onEvent)
 }
 
-/**
- * Renders [content] from [presenter] and handles effects while the lifecycle is at least
- * [effectsMinActiveState].
- */
-@Composable
-public fun <Event : Any, Model : Any, Effect : Any> PresenterHost(
-    presenter: MoleculePresenter<Event, Model, Effect>,
-    onEffect: suspend (Effect) -> Unit,
-    effectsMinActiveState: Lifecycle.State = Lifecycle.State.STARTED,
-    content: @Composable (state: Model, onEvent: (Event) -> Unit) -> Unit,
-) {
-    require(effectsMinActiveState.isAtLeast(Lifecycle.State.CREATED)) {
-        "effectsMinActiveState must be CREATED, STARTED, or RESUMED"
-    }
-    val state by presenter.state.collectAsStateWithLifecycle()
-    val currentOnEffect by rememberUpdatedState(onEffect)
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    LaunchedEffect(presenter, lifecycleOwner, effectsMinActiveState) {
-        lifecycleOwner.repeatOnLifecycle(effectsMinActiveState) {
-            presenter.effects.collect { currentOnEffect(it) }
-        }
-    }
-
-    content(state, presenter::onEvent)
-}
