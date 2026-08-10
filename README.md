@@ -5,9 +5,9 @@
 
 Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
 
-`MoleculeViewModel` runs a composable presenter in `viewModelScope`. Retrieval returns a
-`PresenterEntry` whose `PresenterBinding` exposes models as a `StateFlow`, accepts UI events, and
-delivers one-time effects. The test artifact runs the same presenter directly on the JVM.
+`MoleculeViewModel` runs a composable presenter in `viewModelScope`. The screen reads models from
+a `StateFlow`, sends events, and receives one-time effects. The test artifact runs the same
+presenter directly on the JVM.
 
 Inside the presenter, use `remember`, `collectAsState`, and Compose effects. Outside it, the screen
 sees only the binding contract.
@@ -67,13 +67,6 @@ fun increment() = runTest {
 }
 ```
 
-```
-          events                    models
-UI ──────────────────▶ present() ──────────────────▶ UI
-                           │
-                           └── effects ──▶ onEffect
-```
-
 ## Installation
 
 ```kotlin
@@ -110,6 +103,13 @@ android {
 
 ## Models, events, and effects
 
+```
+          events                    models
+UI ──────────────────▶ present() ──────────────────▶ UI
+                           │
+                           └── effects ──▶ onEffect
+```
+
 | Type | Direction | Purpose |
 | --- | --- | --- |
 | Model | Presenter to UI | Everything the screen needs to render |
@@ -118,7 +118,7 @@ android {
 
 ### Models
 
-The molecule starts when an entry's binding `state` is first read. `RecompositionMode.Immediate`
+The molecule starts the first time the binding's `state` is read. `RecompositionMode.Immediate`
 produces the first model during that read, so `state.value` is available as soon as the getter
 returns. That first composition runs on whichever thread reads `state` first, so make the first
 read on Main. Later models are conflated by equality, like any other `StateFlow`.
@@ -165,11 +165,10 @@ CollectEventsOf<CounterEvent.Increment>(events) {
 }
 ```
 
-Both input and effect queues have a capacity of 50. A running presenter drains events into an
-internal buffer, so a stuck `CollectEvents` block moves the throw past the 51st send, but
-delivery stays bounded: a backed up pipeline throws instead of suspending or silently
-dropping. Sending to a full queue throws with the ViewModel and payload types in the message.
-Sending after the ViewModel is cleared does nothing.
+Both input and effect queues hold 50 items. A full queue throws instead of suspending or silently
+dropping, and the error names the ViewModel and payload types without logging values. Sending
+after the ViewModel is cleared does nothing. The exact overflow points are in the guarantees
+table.
 
 ### Effects
 
@@ -337,8 +336,9 @@ class SearchViewModel @Inject constructor(
 }
 ```
 
-`rememberSaveable` does not need it. Use `SavedStateHandle` for state that outlives the
-presenter, and `rememberSaveable` for state the presenter owns.
+`rememberSaveable` does not need it. Use `SavedStateHandle` for application or navigation state
+that should be available outside the Molecule composition. Use `rememberSaveable` for state owned
+by the composable presenter.
 
 ### Assisted injection
 
@@ -385,55 +385,24 @@ test harness directly.
 
 ## Navigation 3
 
-Navigation 3 keeps the back stack as state you own. Give each destination a serializable key:
+Include the saveable-state and ViewModelStore decorators so each back-stack entry owns its
+ViewModel:
 
 ```kotlin
-@Serializable
-data object Products : NavKey
-
-@Serializable
-data class ProductDetails(val productId: String) : NavKey
+entryDecorators = listOf(
+    rememberSaveableStateHolderNavEntryDecorator(),
+    rememberViewModelStoreNavEntryDecorator(),
+)
 ```
 
-Include the saveable-state and ViewModelStore decorators so each entry owns its ViewModel:
+Retrieve the presenter inside the entry. No explicit key is needed, since each destination has
+its own owner. `rememberNavBackStack` restores its keys after process death, so a restored key's
+arguments reach the assisted factory again when the destination is recreated.
 
-```kotlin
-@Composable
-fun AppNavigation() {
-    val backStack = rememberNavBackStack(Products)
-
-    NavDisplay(
-        backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator(),
-        ),
-        entryProvider = { key ->
-            when (key) {
-                Products -> NavEntry(key) {
-                    ProductListRoute(
-                        onOpenProduct = { backStack.add(ProductDetails(it)) },
-                    )
-                }
-                is ProductDetails -> NavEntry(key) {
-                    ProductDetailsRoute(
-                        productId = key.productId,
-                        onBack = { backStack.removeLastOrNull() },
-                    )
-                }
-                else -> error("Unknown navigation key: $key")
-            }
-        },
-    )
-}
-```
-
-No explicit ViewModel key is needed when each destination has its own owner.
-
-`rememberNavBackStack` restores its keys after configuration changes and process death. A restored
-`ProductDetails` hands its `productId` to the assisted factory again when the destination is
-recreated.
+Presenter state remains while its destination stays on the back stack. Navigating to another
+screen and returning does not reset `remember` values. Use `rememberSaveable` when those values
+must also survive process death. Removing the destination clears its ViewModel and presenter
+state.
 
 The library does not define a navigation API. Navigation can stay in the UI or be handled as an
 effect, depending on the application.
