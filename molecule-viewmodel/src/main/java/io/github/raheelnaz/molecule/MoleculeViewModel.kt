@@ -29,15 +29,6 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     private val eventChannel = Channel<Event>(capacity = 50)
     private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
 
-    // One instance for the ViewModel's lifetime: PresenterHost restarts effect collection when
-    // the binding changes, so presenterBinding() has to keep returning the same object.
-    internal val bindingInstance: PresenterBinding<Event, Model, Effect> =
-        object : PresenterBinding<Event, Model, Effect> {
-            override val state: StateFlow<Model> get() = this@MoleculeViewModel.state
-            override val effects: Flow<Effect> get() = this@MoleculeViewModel.effects
-            override fun onEvent(event: Event) = this@MoleculeViewModel.onEvent(event)
-        }
-
     // Keep the same downstream capacity as shareIn's default buffer.
     private val events = MutableSharedFlow<Event>(extraBufferCapacity = 64)
 
@@ -136,6 +127,15 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     protected fun emitEffect(effect: Effect) {
         effectChannel.trySendOrThrow(effect, "Effect", this)
     }
+
+    // One instance for the ViewModel's lifetime: PresenterHost restarts effect collection when
+    // the binding changes, so presenterBinding() has to keep returning the same object.
+    internal val bindingInstance: PresenterBinding<Event, Model, Effect> =
+        object : PresenterBinding<Event, Model, Effect> {
+            override val state: StateFlow<Model> get() = this@MoleculeViewModel.state
+            override val effects: Flow<Effect> get() = this@MoleculeViewModel.effects
+            override fun onEvent(event: Event) = this@MoleculeViewModel.onEvent(event)
+        }
 
     // moleculeViewModel() calls this before the first state read; the shared lock keeps the
     // two from racing.
