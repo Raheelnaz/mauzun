@@ -1,5 +1,13 @@
 # Change Log
 
+## [Unreleased]
+
+- Add `moleculeViewModel()` and the optional `molecule-viewmodel-hilt` adapter. Both install a
+  saveable state registry before the presenter starts, so `rememberSaveable` survives process
+  recreation without requiring a `SavedStateHandle` constructor in the base class.
+- With the registry attached, `rememberSaveable` of a value Android cannot save throws instead
+  of silently acting like `remember`.
+
 ## [0.5.1] - 2026-08-09
 
 - Move Turbine to an implementation dependency of molecule-viewmodel-test. Tests that use

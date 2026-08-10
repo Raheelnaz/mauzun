@@ -1,3 +1,8 @@
+public final class io/github/raheelnaz/molecule/-MoleculeViewModelProvider {
+	public static final fun attachMoleculeSavedState (Lio/github/raheelnaz/molecule/MoleculeViewModel;Ljava/lang/String;Ljava/lang/Class;Landroidx/lifecycle/ViewModelStoreOwner;Landroidx/lifecycle/viewmodel/CreationExtras;Landroidx/compose/runtime/Composer;I)Lio/github/raheelnaz/molecule/MoleculeViewModel;
+	public static final fun requireUsableKey (Ljava/lang/String;)V
+}
+
 public final class io/github/raheelnaz/molecule/LaunchedEffectNotNullKt {
 	public static final fun LaunchedEffectNotNull (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function5;Landroidx/compose/runtime/Composer;I)V
 	public static final fun LaunchedEffectNotNull (Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;I)V
