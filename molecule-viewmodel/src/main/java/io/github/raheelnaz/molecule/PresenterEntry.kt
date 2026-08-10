@@ -1,6 +1,6 @@
 package io.github.raheelnaz.molecule
 
-/** A screen-scoped presenter returned by [moleculeViewModel]. */
+/** A presenter returned by [moleculeViewModel], scoped to the owner it was retrieved from. */
 public class PresenterEntry<VM : MoleculeViewModel<*, *, *>> internal constructor(
     internal val viewModel: VM,
 )
