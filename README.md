@@ -243,9 +243,10 @@ val viewModel: ProductViewModel = moleculeViewModel()
 ```
 
 Use the helper consistently for a given instance. Reading `state` first and trying to attach saved
-state later throws because the presenter has already started. Presenters obtained another way keep
-Compose's normal fallback from `rememberSaveable` to `remember` and can still use an injected
-`SavedStateHandle` directly.
+state later throws because the presenter has already started. For the same reason, do not read
+`state` from a constructor or an `init` block; the registry attaches after the ViewModel exists.
+Presenters obtained another way keep Compose's normal fallback from `rememberSaveable` to
+`remember` and can still use an injected `SavedStateHandle` directly.
 
 ## Hilt
 

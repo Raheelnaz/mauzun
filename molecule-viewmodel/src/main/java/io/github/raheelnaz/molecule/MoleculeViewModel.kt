@@ -39,20 +39,6 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     private val startLock = Any()
     private var presenterSavedState: PresenterSavedState? = null
 
-    internal fun attachSavedState(savedState: PresenterSavedState) {
-        synchronized(startLock) {
-            if (presenterSavedState === savedState) return
-            check(!startAttempted) {
-                "rememberSaveable state was attached after the presenter started; " +
-                    "obtain this ViewModel with moleculeViewModel() before reading state"
-            }
-            check(presenterSavedState == null) {
-                "rememberSaveable state was attached from a different ViewModelStoreOwner or key"
-            }
-            presenterSavedState = savedState
-        }
-    }
-
     // Immediate makes state.value available on the first read. The lazy and attachSavedState
     // share startLock, so an attach cannot race the first read.
     final override val state: StateFlow<Model> by lazy(startLock) {
@@ -140,6 +126,22 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
      */
     protected fun emitEffect(effect: Effect) {
         effectChannel.trySendOrThrow(effect, "Effect", this)
+    }
+
+    // moleculeViewModel() calls this before the first state read; the shared lock keeps the
+    // two from racing.
+    internal fun attachSavedState(savedState: PresenterSavedState) {
+        synchronized(startLock) {
+            if (presenterSavedState === savedState) return
+            check(!startAttempted) {
+                "rememberSaveable state was attached after the presenter started; " +
+                    "obtain this ViewModel with moleculeViewModel() before reading state"
+            }
+            check(presenterSavedState == null) {
+                "rememberSaveable state was attached from a different ViewModelStoreOwner or key"
+            }
+            presenterSavedState = savedState
+        }
     }
 
     /** Register subclass cleanup with [addCloseable]. */

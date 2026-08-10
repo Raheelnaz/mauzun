@@ -31,4 +31,7 @@ kotlin {
 dependencies {
     api(project(":molecule-viewmodel"))
     api(libs.androidx.hilt.lifecycle.viewmodel.compose)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.assertk)
 }

@@ -1,0 +1,4 @@
+public final class io/github/raheelnaz/molecule/hilt/-HiltMoleculeViewModel {
+	public static final fun requireUsableKey (Ljava/lang/String;)V
+}
+

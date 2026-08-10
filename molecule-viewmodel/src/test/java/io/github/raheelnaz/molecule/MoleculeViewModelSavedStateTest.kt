@@ -161,7 +161,6 @@ private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.obtain
         key = key,
         viewModelStoreOwner = this@obtain,
         factory = factory,
-        extras = defaultViewModelCreationExtras,
     )
 }.first()
 
@@ -173,7 +172,6 @@ private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.attach
         viewModel = viewModel,
         key = key,
         viewModelStoreOwner = this@attach,
-        extras = defaultViewModelCreationExtras,
     )
 }.first()
 
@@ -459,6 +457,25 @@ class MoleculeViewModelSavedStateTest {
                 "ViewModel keys starting with " +
                     "io.github.raheelnaz.molecule.presenter-saved-state-holder: are reserved",
             )
+        host.viewModelStore.clear()
+    }
+
+    @Test
+    fun `a rejected key leaves other holders untouched`() = runTest(dispatcher) {
+        val host = Host()
+        val screen = host.obtain<SaveableViewModel>("screen", saveableFactory)
+        screen.state
+
+        runCatching {
+            host.obtain<SaveableViewModel>(
+                key = "io.github.raheelnaz.molecule.presenter-saved-state-holder:screen",
+                factory = saveableFactory,
+            )
+        }
+
+        // Recomposition retrieves the same presenter again; a replaced holder would throw here.
+        val again = host.obtain<SaveableViewModel>("screen", saveableFactory)
+        assertThat(again).isEqualTo(screen)
         host.viewModelStore.clear()
     }
 

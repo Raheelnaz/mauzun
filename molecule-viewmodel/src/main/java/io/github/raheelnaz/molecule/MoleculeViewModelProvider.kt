@@ -35,6 +35,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
         CreationExtras.Empty
     },
 ): VM {
+    requireUsableKey(key)
     val presenter = androidxViewModel<VM>(
         viewModelStoreOwner = viewModelStoreOwner,
         key = key,
@@ -66,19 +67,25 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
     } else {
         CreationExtras.Empty
     },
-): VM = attachMoleculeSavedState(
-    viewModel = viewModel,
-    key = key,
-    modelClass = VM::class.java,
-    viewModelStoreOwner = viewModelStoreOwner,
-    extras = extras,
-)
+): VM {
+    requireUsableKey(key)
+    return attachMoleculeSavedState(
+        viewModel = viewModel,
+        key = key,
+        modelClass = VM::class.java,
+        viewModelStoreOwner = viewModelStoreOwner,
+        extras = extras,
+    )
+}
 
-// Prefixed so a derived key can never collide with an explicit one.
-private fun defaultViewModelKey(modelClass: Class<*>): String {
-    val canonicalName = modelClass.canonicalName
-        ?: throw IllegalArgumentException("Local and anonymous classes can not be ViewModels")
-    return "io.github.raheelnaz.molecule.default-key:$canonicalName"
+// A presenter keyed under the holder prefix would replace another screen's holder, and that
+// screen's saved state would be lost. This runs before anything touches the ViewModelStore.
+// The hilt module carries a copy; the prefix is frozen by persistence, so neither can change.
+@PublishedApi
+internal fun requireUsableKey(key: String?) {
+    require(key == null || !key.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {
+        "ViewModel keys starting with $SAVED_STATE_HOLDER_KEY_PREFIX are reserved"
+    }
 }
 
 private const val SAVED_STATE_HOLDER_KEY_PREFIX =
@@ -91,15 +98,13 @@ private class PresenterSavedStateHolder(handle: SavedStateHandle) : ViewModel() 
 private val presenterSavedStateHolderFactory = viewModelFactory {
     initializer {
         // androidx throws IllegalArgumentException for a missing extra and IllegalStateException
-        // for missing setup; the try covers that one call, so catch both.
+        // for missing setup. Anything else is a bug and stays unwrapped.
         val handle = try {
             createSavedStateHandle()
-        } catch (failure: RuntimeException) {
-            throw IllegalStateException(
-                "moleculeViewModel needs a ViewModelStoreOwner that provides saved state. " +
-                    "An Activity, Fragment, or navigation entry does; this owner does not.",
-                failure,
-            )
+        } catch (failure: IllegalArgumentException) {
+            throw unsupportedOwner(failure)
+        } catch (failure: IllegalStateException) {
+            throw unsupportedOwner(failure)
         }
         PresenterSavedStateHolder(handle)
     }
@@ -114,18 +119,27 @@ internal fun <VM : MoleculeViewModel<*, *, *>> attachMoleculeSavedState(
     viewModelStoreOwner: ViewModelStoreOwner,
     extras: CreationExtras,
 ): VM {
-    val viewModelKey = key ?: defaultViewModelKey(modelClass)
-    // A presenter keyed under this prefix would replace another screen's holder, and that
-    // screen's saved state would be lost.
-    require(!viewModelKey.startsWith(SAVED_STATE_HOLDER_KEY_PREFIX)) {
-        "ViewModel keys starting with $SAVED_STATE_HOLDER_KEY_PREFIX are reserved"
+    requireUsableKey(key)
+    // Derived and explicit keys live in separate namespaces, so they can never meet.
+    val holderKey = SAVED_STATE_HOLDER_KEY_PREFIX + if (key != null) {
+        "explicit:$key"
+    } else {
+        val canonicalName = modelClass.canonicalName
+            ?: throw IllegalArgumentException("Local and anonymous classes can not be ViewModels")
+        "default:$canonicalName"
     }
     val holder = androidxViewModel<PresenterSavedStateHolder>(
         viewModelStoreOwner = viewModelStoreOwner,
-        key = SAVED_STATE_HOLDER_KEY_PREFIX + viewModelKey,
+        key = holderKey,
         factory = presenterSavedStateHolderFactory,
         extras = extras,
     )
     viewModel.attachSavedState(holder.savedState)
     return viewModel
 }
+
+private fun unsupportedOwner(cause: RuntimeException) = IllegalStateException(
+    "moleculeViewModel needs a ViewModelStoreOwner that provides saved state. " +
+        "An Activity, Fragment, or navigation entry does; this owner does not.",
+    cause,
+)
