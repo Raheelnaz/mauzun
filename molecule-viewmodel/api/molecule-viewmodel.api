@@ -1,6 +1,6 @@
 public final class io/github/raheelnaz/molecule/-MoleculeViewModelProvider {
 	public static final fun attachMoleculeSavedState (Lio/github/raheelnaz/molecule/MoleculeViewModel;Ljava/lang/String;Ljava/lang/Class;Landroidx/lifecycle/ViewModelStoreOwner;Landroidx/lifecycle/viewmodel/CreationExtras;Landroidx/compose/runtime/Composer;I)Lio/github/raheelnaz/molecule/MoleculeViewModel;
-	public static final fun moleculePresenterEntry (Ljava/lang/String;Landroidx/lifecycle/ViewModelStoreOwner;Landroidx/lifecycle/viewmodel/CreationExtras;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)Lio/github/raheelnaz/molecule/PresenterEntry;
+	public static final fun moleculePresenterEntry (Ljava/lang/String;Ljava/lang/Class;Landroidx/lifecycle/ViewModelStoreOwner;Landroidx/lifecycle/viewmodel/CreationExtras;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)Lio/github/raheelnaz/molecule/PresenterEntry;
 	public static final fun requireUsableKey (Ljava/lang/String;)V
 }
 

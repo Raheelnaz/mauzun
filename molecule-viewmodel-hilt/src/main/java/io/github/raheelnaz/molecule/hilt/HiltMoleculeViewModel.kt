@@ -27,6 +27,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> hiltMoleculeViewMode
     requireUsableKey(key)
     return moleculePresenterEntry(
         key = key,
+        modelClass = VM::class.java,
         viewModelStoreOwner = viewModelStoreOwner,
         extras = defaultCreationExtras(viewModelStoreOwner),
     ) {
@@ -48,6 +49,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>, reified VMF> hiltMol
     requireUsableKey(key)
     return moleculePresenterEntry(
         key = key,
+        modelClass = VM::class.java,
         viewModelStoreOwner = viewModelStoreOwner,
         extras = defaultCreationExtras(viewModelStoreOwner),
     ) {

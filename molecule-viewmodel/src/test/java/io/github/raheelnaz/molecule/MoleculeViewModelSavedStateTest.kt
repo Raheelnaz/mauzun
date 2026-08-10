@@ -117,6 +117,19 @@ private class SelfRetrievingViewModel(
     }
 }
 
+private abstract class SwappableViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int {
+        var value by rememberSaveable { mutableIntStateOf(0) }
+        CollectEvents(events) { value = it }
+        return value
+    }
+}
+
+private class FirstImpl : SwappableViewModel()
+
+private class SecondImpl : SwappableViewModel()
+
 private class OwnHandleViewModel(
     val handle: SavedStateHandle,
 ) : MoleculeViewModel<Int, Int, Nothing>() {
@@ -185,6 +198,7 @@ private suspend inline fun <reified VM : MoleculeViewModel<*, *, *>> Host.attach
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
     moleculePresenterEntry(
         key = key,
+        modelClass = VM::class.java,
         viewModelStoreOwner = this@attach,
         extras = defaultViewModelCreationExtras,
     ) { viewModel }
@@ -329,6 +343,29 @@ class MoleculeViewModelSavedStateTest {
             )
         host.viewModelStore.clear()
     }
+
+    @Test
+    fun `restoration survives a different implementation of the requested class`() =
+        runTest(dispatcher) {
+            val firstHost = Host()
+            val first = firstHost.obtain<SwappableViewModel>(
+                factory = viewModelFactory { initializer<SwappableViewModel> { FirstImpl() } },
+            )
+            first.binding.state
+            first.binding.onEvent(7)
+            advanceUntilIdle()
+            val saved = firstHost.save().parcelled()
+            firstHost.destroy()
+            firstHost.viewModelStore.clear()
+
+            val secondHost = Host(saved)
+            val second = secondHost.obtain<SwappableViewModel>(
+                factory = viewModelFactory { initializer<SwappableViewModel> { SecondImpl() } },
+            )
+
+            assertThat(second.binding.state.value).isEqualTo(7)
+            secondHost.viewModelStore.clear()
+        }
 
     @Test
     fun `retrieval from inside present is rejected`() = runTest(dispatcher) {

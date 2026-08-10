@@ -40,6 +40,7 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
     requireUsableKey(key)
     return moleculePresenterEntry(
         key = key,
+        modelClass = VM::class.java,
         viewModelStoreOwner = viewModelStoreOwner,
         extras = extras,
     ) {
@@ -55,14 +56,16 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 /**
  * Creates an entry for a ViewModel obtained by another integration.
  *
- * Adapters must obtain the ViewModel inside [viewModel] and pass the same owner and key used by
- * that integration. Calling this from [MoleculeViewModel.present] is rejected before [viewModel]
- * runs.
+ * Adapters must obtain the ViewModel inside [viewModel] and pass the same owner, key, requested
+ * [modelClass], and creation [extras] used by that integration. The requested class keys the
+ * saved state, so a factory returning a subtype restores the same values either way. Calling
+ * this from [MoleculeViewModel.present] is rejected before [viewModel] runs.
  */
 @Composable
 @MoleculeViewModelAdapterApi
 public fun <VM : MoleculeViewModel<*, *, *>> moleculePresenterEntry(
     key: String?,
+    modelClass: Class<out VM>,
     viewModelStoreOwner: ViewModelStoreOwner,
     extras: CreationExtras,
     viewModel: @Composable () -> VM,
@@ -75,7 +78,7 @@ public fun <VM : MoleculeViewModel<*, *, *>> moleculePresenterEntry(
     val attached = attachMoleculeSavedState(
         viewModel = instance,
         key = key,
-        modelClass = instance::class.java,
+        modelClass = modelClass,
         viewModelStoreOwner = viewModelStoreOwner,
         extras = extras,
     )
