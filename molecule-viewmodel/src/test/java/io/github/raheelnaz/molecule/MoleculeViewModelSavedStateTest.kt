@@ -103,6 +103,16 @@ private class LambdaViewModel : MoleculeViewModel<Int, Int, Nothing>() {
     }
 }
 
+private class EagerViewModel : MoleculeViewModel<Int, Int, Nothing>() {
+    init {
+        @Suppress("LeakingThis")
+        presenterBinding().state
+    }
+
+    @Composable
+    override fun present(events: Flow<Int>): Int = 0
+}
+
 private class OwnHandleViewModel(
     val handle: SavedStateHandle,
 ) : MoleculeViewModel<Int, Int, Nothing>() {
@@ -310,8 +320,24 @@ class MoleculeViewModelSavedStateTest {
             .isInstanceOf(IllegalStateException::class)
             .hasMessage(
                 "rememberSaveable state was attached after the presenter started; " +
-                    "obtain this ViewModel with moleculeViewModel() before reading state",
+                    "obtain this ViewModel with moleculeViewModel() before anything reads " +
+                    "presenterBinding().state, and never read it from an init block",
             )
+        host.viewModelStore.clear()
+    }
+
+    @Test
+    fun `an init block that reads state trips the guard`() = runTest(dispatcher) {
+        val host = Host()
+        val factory = viewModelFactory { initializer { EagerViewModel() } }
+
+        val outcome = runCatching { host.obtain<EagerViewModel>(factory = factory) }
+
+        val named = generateSequence(outcome.exceptionOrNull()) { it.cause }
+            .firstOrNull { it.message?.startsWith("rememberSaveable state was attached") == true }
+        assertThat(named)
+            .isNotNull()
+            .isInstanceOf(IllegalStateException::class)
         host.viewModelStore.clear()
     }
 

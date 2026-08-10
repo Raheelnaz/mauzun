@@ -28,7 +28,7 @@ public abstract class io/github/raheelnaz/molecule/MoleculeViewModel : androidx/
 }
 
 public final class io/github/raheelnaz/molecule/MoleculeViewModelBindingKt {
-	public static final fun binding (Lio/github/raheelnaz/molecule/MoleculeViewModel;)Lio/github/raheelnaz/molecule/PresenterBinding;
+	public static final fun presenterBinding (Lio/github/raheelnaz/molecule/MoleculeViewModel;)Lio/github/raheelnaz/molecule/PresenterBinding;
 }
 
 public final class io/github/raheelnaz/molecule/PresenterHostKt {

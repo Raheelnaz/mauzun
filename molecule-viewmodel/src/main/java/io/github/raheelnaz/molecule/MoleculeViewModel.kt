@@ -30,7 +30,7 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
     private val effectChannel = redeliveringChannel<Effect>(capacity = 50)
 
     // One instance for the ViewModel's lifetime: PresenterHost restarts effect collection when
-    // the binding changes, so binding() has to keep returning the same object.
+    // the binding changes, so presenterBinding() has to keep returning the same object.
     internal val bindingInstance: PresenterBinding<Event, Model, Effect> =
         object : PresenterBinding<Event, Model, Effect> {
             override val state: StateFlow<Model> get() = this@MoleculeViewModel.state
@@ -144,7 +144,8 @@ public abstract class MoleculeViewModel<Event : Any, Model : Any, Effect : Any> 
             if (presenterSavedState === savedState) return
             check(!startAttempted) {
                 "rememberSaveable state was attached after the presenter started; " +
-                    "obtain this ViewModel with moleculeViewModel() before reading state"
+                    "obtain this ViewModel with moleculeViewModel() before anything reads " +
+                    "presenterBinding().state, and never read it from an init block"
             }
             check(presenterSavedState == null) {
                 "rememberSaveable state was attached from a different ViewModelStoreOwner or key"

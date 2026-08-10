@@ -3,8 +3,8 @@ package io.github.raheelnaz.molecule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/** What a screen consumes: models out, effects out, events in. Obtained via `binding()`. */
-public interface PresenterBinding<Event : Any, Model : Any, Effect : Any> {
+/** What a screen consumes: models out, effects out, events in. Obtained via `presenterBinding()`. */
+public interface PresenterBinding<in Event : Any, out Model : Any, out Effect : Any> {
 
     /** The latest model to render. */
     public val state: StateFlow<Model>

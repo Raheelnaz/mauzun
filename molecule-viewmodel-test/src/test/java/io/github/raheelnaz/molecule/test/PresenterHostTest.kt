@@ -16,7 +16,7 @@ import assertk.assertions.hasMessage
 import assertk.assertions.isEmpty
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
-import io.github.raheelnaz.molecule.MoleculePresenter
+import io.github.raheelnaz.molecule.PresenterBinding
 import io.github.raheelnaz.molecule.PresenterHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +36,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-private class FakePresenter : MoleculePresenter<Int, Int, String> {
+private class FakePresenter : PresenterBinding<Int, Int, String> {
     override val state = MutableStateFlow(0)
     private val effectChannel = Channel<String>(capacity = 50)
     override val effects: Flow<String> = effectChannel.receiveAsFlow()
