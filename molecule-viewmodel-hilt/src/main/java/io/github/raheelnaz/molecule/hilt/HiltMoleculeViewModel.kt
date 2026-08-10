@@ -5,30 +5,39 @@ package io.github.raheelnaz.molecule.hilt
 
 import androidx.compose.runtime.Composable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import io.github.raheelnaz.molecule.MoleculeViewModel
-import io.github.raheelnaz.molecule.moleculeViewModel
+import io.github.raheelnaz.molecule.MoleculeViewModelAdapterApi
+import io.github.raheelnaz.molecule.PresenterEntry
+import io.github.raheelnaz.molecule.moleculePresenterEntry
 
-/** Returns a Hilt-created [MoleculeViewModel] with `rememberSaveable` support. */
+/** Returns a Hilt-created [PresenterEntry] with `rememberSaveable` support. */
 @Composable
+@OptIn(MoleculeViewModelAdapterApi::class)
 public inline fun <reified VM : MoleculeViewModel<*, *, *>> hiltMoleculeViewModel(
     viewModelStoreOwner: ViewModelStoreOwner =
         checkNotNull(LocalViewModelStoreOwner.current) {
             "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
         },
     key: String? = null,
-): VM {
+): PresenterEntry<VM> {
     requireUsableKey(key)
-    return moleculeViewModel(
-        viewModel = hiltViewModel<VM>(viewModelStoreOwner, key),
+    return moleculePresenterEntry(
         key = key,
+        modelClass = VM::class.java,
         viewModelStoreOwner = viewModelStoreOwner,
-    )
+        extras = defaultCreationExtras(viewModelStoreOwner),
+    ) {
+        hiltViewModel<VM>(viewModelStoreOwner, key)
+    }
 }
 
-/** Returns an assisted Hilt [MoleculeViewModel] with `rememberSaveable` support. */
+/** Returns an assisted Hilt [PresenterEntry] with `rememberSaveable` support. */
 @Composable
+@OptIn(MoleculeViewModelAdapterApi::class)
 public inline fun <reified VM : MoleculeViewModel<*, *, *>, reified VMF> hiltMoleculeViewModel(
     viewModelStoreOwner: ViewModelStoreOwner =
         checkNotNull(LocalViewModelStoreOwner.current) {
@@ -36,18 +45,29 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>, reified VMF> hiltMol
         },
     key: String? = null,
     noinline creationCallback: (VMF) -> VM,
-): VM {
+): PresenterEntry<VM> {
     requireUsableKey(key)
-    return moleculeViewModel(
-        viewModel = hiltViewModel<VM, VMF>(
+    return moleculePresenterEntry(
+        key = key,
+        modelClass = VM::class.java,
+        viewModelStoreOwner = viewModelStoreOwner,
+        extras = defaultCreationExtras(viewModelStoreOwner),
+    ) {
+        hiltViewModel<VM, VMF>(
             viewModelStoreOwner = viewModelStoreOwner,
             key = key,
             creationCallback = creationCallback,
-        ),
-        key = key,
-        viewModelStoreOwner = viewModelStoreOwner,
-    )
+        )
+    }
 }
+
+@PublishedApi
+internal fun defaultCreationExtras(owner: ViewModelStoreOwner): CreationExtras =
+    if (owner is HasDefaultViewModelProviderFactory) {
+        owner.defaultViewModelCreationExtras
+    } else {
+        CreationExtras.Empty
+    }
 
 // hiltViewModel runs before the core module can validate, so the reserved prefix check lives
 // here too. It must stay identical to the core module's, and persistence freezes both.

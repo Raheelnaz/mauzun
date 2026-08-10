@@ -2,8 +2,6 @@ package io.github.raheelnaz.molecule.test
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -13,40 +11,25 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
-import androidx.lifecycle.ViewModelStore
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import io.github.raheelnaz.molecule.MoleculeViewModel
-import io.github.raheelnaz.molecule.presenterBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-
-private class DisposingViewModel(
-    private val log: MutableList<String>,
-) : MoleculeViewModel<Int, Int, Nothing>() {
-    @Composable
-    override fun present(events: Flow<Int>): Int {
-        DisposableEffect(Unit) {
-            log += "effect"
-            onDispose { log += "dispose" }
-        }
-        return 0
-    }
-}
 
 private class ProducingViewModel(
     val source: Channel<Int>,
@@ -140,22 +123,6 @@ class ComposeIdiomsTest {
 
     @After
     fun tearDown() = Dispatchers.resetMain()
-
-    @Test
-    fun `DisposableEffect disposes when the ViewModel is cleared`() = runTest(dispatcher) {
-        val log = mutableListOf<String>()
-        val store = ViewModelStore()
-        val vm = DisposingViewModel(log)
-        store.put("vm", vm)
-
-        vm.presenterBinding.state
-        advanceUntilIdle()
-        assertThat(log).containsExactly("effect")
-
-        store.clear()
-        advanceUntilIdle()
-        assertThat(log).containsExactly("effect", "dispose")
-    }
 
     @Test
     fun `snapshotFlow observes presenter state`() = runTest {

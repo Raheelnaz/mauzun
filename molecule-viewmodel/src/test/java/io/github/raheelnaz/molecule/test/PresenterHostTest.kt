@@ -87,7 +87,7 @@ class PresenterHostTest {
     }
 
     @Test
-    fun `the viewModel overload binds and renders`() = runTest(dispatcher) {
+    fun `the entry overload binds and renders`() = runTest(dispatcher) {
         val store = ViewModelStore()
         val vm = EchoHostViewModel()
         store.put("vm", vm)
@@ -96,7 +96,7 @@ class PresenterHostTest {
         var send: ((Int) -> Unit)? = null
 
         host(owner) {
-            PresenterHost(viewModel = vm, onEffect = {}) { state, onEvent ->
+            PresenterHost(presenter = vm.testEntry(), onEffect = {}) { state, onEvent ->
                 models += state
                 send = onEvent
             }

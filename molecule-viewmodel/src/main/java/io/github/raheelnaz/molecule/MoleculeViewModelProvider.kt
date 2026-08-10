@@ -4,6 +4,7 @@
 package io.github.raheelnaz.molecule
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -17,11 +18,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
 /**
- * Returns a [MoleculeViewModel] scoped to [viewModelStoreOwner]. Presenters obtained here can use
+ * Returns a [PresenterEntry] scoped to [viewModelStoreOwner]. Presenters obtained here can use
  * `rememberSaveable` without accepting a `SavedStateHandle` themselves. The owner must provide the
  * saved-state creation extras supplied by an Activity, Fragment, or navigation entry.
  */
 @Composable
+@OptIn(MoleculeViewModelAdapterApi::class)
 public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
     key: String? = null,
     viewModelStoreOwner: ViewModelStoreOwner =
@@ -34,49 +36,53 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
     } else {
         CreationExtras.Empty
     },
-): VM {
+): PresenterEntry<VM> {
     requireUsableKey(key)
-    val presenter = androidxViewModel<VM>(
-        viewModelStoreOwner = viewModelStoreOwner,
-        key = key,
-        factory = factory,
-        extras = extras,
-    )
-    return moleculeViewModel(
-        viewModel = presenter,
-        key = key,
-        viewModelStoreOwner = viewModelStoreOwner,
-        extras = extras,
-    )
-}
-
-/**
- * Adds `rememberSaveable` support to [viewModel] when another integration created it. Use the same
- * [key] and [viewModelStoreOwner] that were used to obtain the ViewModel, before anything reads
- * `presenterBinding.state`.
- */
-@Composable
-public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
-    viewModel: VM,
-    key: String? = null,
-    viewModelStoreOwner: ViewModelStoreOwner =
-        checkNotNull(LocalViewModelStoreOwner.current) {
-            "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-        },
-    extras: CreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
-        viewModelStoreOwner.defaultViewModelCreationExtras
-    } else {
-        CreationExtras.Empty
-    },
-): VM {
-    requireUsableKey(key)
-    return attachMoleculeSavedState(
-        viewModel = viewModel,
+    return moleculePresenterEntry(
         key = key,
         modelClass = VM::class.java,
         viewModelStoreOwner = viewModelStoreOwner,
         extras = extras,
+    ) {
+        androidxViewModel<VM>(
+            viewModelStoreOwner = viewModelStoreOwner,
+            key = key,
+            factory = factory,
+            extras = extras,
+        )
+    }
+}
+
+/**
+ * Creates an entry for a ViewModel obtained by another integration.
+ *
+ * Adapters must obtain the ViewModel inside [viewModel] and pass the same owner, key, requested
+ * [modelClass], and creation [extras] used by that integration. The requested class keys the
+ * saved state, so a factory returning a subtype restores the same values either way. Calling
+ * this from [MoleculeViewModel.present] is rejected before [viewModel] runs.
+ */
+@Composable
+@MoleculeViewModelAdapterApi
+public fun <VM : MoleculeViewModel<*, *, *>> moleculePresenterEntry(
+    key: String?,
+    modelClass: Class<VM>,
+    viewModelStoreOwner: ViewModelStoreOwner,
+    extras: CreationExtras,
+    viewModel: @Composable () -> VM,
+): PresenterEntry<VM> {
+    check(!LocalPresenterComposition.current) {
+        "moleculeViewModel() cannot be called from MoleculeViewModel.present()"
+    }
+    requireUsableKey(key)
+    val instance = viewModel()
+    val attached = attachMoleculeSavedState(
+        viewModel = instance,
+        key = key,
+        modelClass = modelClass,
+        viewModelStoreOwner = viewModelStoreOwner,
+        extras = extras,
     )
+    return remember(attached) { PresenterEntry(attached) }
 }
 
 // A presenter keyed under the holder prefix would replace another screen's holder, and that

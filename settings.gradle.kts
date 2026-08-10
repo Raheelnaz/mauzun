@@ -26,6 +26,7 @@ rootProject.name = "molecule-viewmodel"
 include(
     ":molecule-viewmodel",
     ":molecule-viewmodel-api",
+    ":molecule-viewmodel-compose",
     ":molecule-viewmodel-hilt",
     ":molecule-viewmodel-test",
 )
