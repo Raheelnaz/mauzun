@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.6.0] - 2026-08-10
 
 - Add `moleculeViewModel()` and the optional `molecule-viewmodel-hilt` adapter. Both install a
   saveable state registry before the presenter starts, so `rememberSaveable` survives process
