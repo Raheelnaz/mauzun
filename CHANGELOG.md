@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.9.0] - 2026-08-11
 
 - Add the optional `molecule-viewmodel-metro` adapter. It wraps Metro's Compose retrieval and
   installs presenter saved state before returning the entry.
