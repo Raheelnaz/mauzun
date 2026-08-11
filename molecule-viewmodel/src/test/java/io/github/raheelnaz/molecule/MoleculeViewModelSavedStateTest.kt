@@ -141,6 +141,11 @@ private class OwnHandleViewModel(
     }
 }
 
+private class ArgViewModel(val arg: String) : MoleculeViewModel<Int, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Int>): Int = 0
+}
+
 private class Host(
     restoredState: Bundle? = null,
     override val viewModelStore: ViewModelStore = ViewModelStore(),
@@ -341,6 +346,113 @@ class MoleculeViewModelSavedStateTest {
                 "rememberSaveable state was attached after the presenter started; " +
                     "obtain the presenter with moleculeViewModel() before its binding starts",
             )
+        host.viewModelStore.clear()
+    }
+
+    @Test
+    fun `restoration works through the create overload`() = runTest(dispatcher) {
+        val firstHost = Host()
+        val first = moleculeFlow(RecompositionMode.Immediate) {
+            moleculeViewModel<SaveableViewModel>(viewModelStoreOwner = firstHost) {
+                SaveableViewModel()
+            }
+        }.first()
+        first.binding.state
+        first.binding.onEvent(9)
+        advanceUntilIdle()
+
+        val saved = firstHost.save().parcelled()
+        firstHost.destroy()
+        firstHost.viewModelStore.clear()
+
+        val secondHost = Host(saved)
+        val second = moleculeFlow(RecompositionMode.Immediate) {
+            moleculeViewModel<SaveableViewModel>(viewModelStoreOwner = secondHost) {
+                SaveableViewModel()
+            }
+        }.first()
+
+        assertThat(second.binding.state.value).isEqualTo(9)
+        secondHost.viewModelStore.clear()
+    }
+
+    @Test
+    fun `the creator runs once per owner and key`() = runTest(dispatcher) {
+        val host = Host()
+        var creations = 0
+        suspend fun obtain(key: String? = null) = moleculeFlow(RecompositionMode.Immediate) {
+            moleculeViewModel<SaveableViewModel>(key = key, viewModelStoreOwner = host) {
+                creations++
+                SaveableViewModel()
+            }
+        }.first()
+
+        val first = obtain()
+        val again = obtain()
+        assertThat(again.viewModel).isSameInstanceAs(first.viewModel)
+        assertThat(creations).isEqualTo(1)
+
+        val keyed = obtain(key = "second")
+        assertThat(keyed.viewModel === first.viewModel).isEqualTo(false)
+        assertThat(creations).isEqualTo(2)
+
+        val otherHost = Host()
+        val other = moleculeFlow(RecompositionMode.Immediate) {
+            moleculeViewModel<SaveableViewModel>(viewModelStoreOwner = otherHost) {
+                creations++
+                SaveableViewModel()
+            }
+        }.first()
+        assertThat(creations).isEqualTo(3)
+        assertThat(other.viewModel === first.viewModel).isEqualTo(false)
+
+        host.viewModelStore.clear()
+        otherHost.viewModelStore.clear()
+    }
+
+    @Test
+    fun `a changed creator argument does not replace the existing ViewModel`() =
+        runTest(dispatcher) {
+            val host = Host()
+            suspend fun obtain(arg: String) = moleculeFlow(RecompositionMode.Immediate) {
+                moleculeViewModel<ArgViewModel>(viewModelStoreOwner = host) { ArgViewModel(arg) }
+            }.first()
+
+            val first = obtain("a")
+            val second = obtain("b")
+
+            assertThat(second.viewModel).isSameInstanceAs(first.viewModel)
+            assertThat(second.viewModel.arg).isEqualTo("a")
+            host.viewModelStore.clear()
+        }
+
+    @Test
+    fun `the creator receives creation extras`() = runTest(dispatcher) {
+        val host = Host()
+        val entry = moleculeFlow(RecompositionMode.Immediate) {
+            moleculeViewModel<OwnHandleViewModel>(viewModelStoreOwner = host) {
+                OwnHandleViewModel(createSavedStateHandle())
+            }
+        }.first()
+
+        assertThat(entry.binding.state.value).isEqualTo(0)
+        host.viewModelStore.clear()
+    }
+
+    @Test
+    fun `a creator failure propagates`() = runTest(dispatcher) {
+        val host = Host()
+        val outcome = runCatching {
+            moleculeFlow(RecompositionMode.Immediate) {
+                moleculeViewModel<SaveableViewModel>(viewModelStoreOwner = host) {
+                    error("creator failed")
+                }
+            }.first()
+        }
+
+        val named = generateSequence(outcome.exceptionOrNull()) { it.cause }
+            .firstOrNull { it.message == "creator failed" }
+        assertThat(named).isNotNull()
         host.viewModelStore.clear()
     }
 

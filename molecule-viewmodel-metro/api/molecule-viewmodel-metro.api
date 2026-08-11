@@ -1,0 +1,4 @@
+public final class io/github/raheelnaz/molecule/metro/-MetroMoleculeViewModel {
+	public static final fun defaultCreationExtras (Landroidx/lifecycle/ViewModelStoreOwner;)Landroidx/lifecycle/viewmodel/CreationExtras;
+}
+

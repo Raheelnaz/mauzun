@@ -28,5 +28,7 @@ include(
     ":molecule-viewmodel-api",
     ":molecule-viewmodel-compose",
     ":molecule-viewmodel-hilt",
+    ":molecule-viewmodel-metro",
+    ":metro-check",
     ":molecule-viewmodel-test",
 )

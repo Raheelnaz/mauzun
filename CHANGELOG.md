@@ -1,5 +1,13 @@
 # Change Log
 
+## [Unreleased]
+
+- Add the optional `molecule-viewmodel-metro` adapter. It wraps Metro's Compose retrieval and
+  installs presenter saved state before returning the entry.
+- `moleculeViewModel { factory.create(argument) }` builds the ViewModel when the owner holds
+  none, so an assisted factory hands over its runtime argument without writing a
+  `ViewModelProvider.Factory`.
+
 ## [0.8.0] - 2026-08-10
 
 - `moleculeViewModel()` and `hiltMoleculeViewModel()` return a `PresenterEntry` instead of the
