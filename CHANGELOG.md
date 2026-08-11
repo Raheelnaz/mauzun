@@ -1,5 +1,20 @@
 # Change Log
 
+## [0.10.0] - 2026-08-11
+
+- Rename the project from molecule-viewmodel to Mauzun. The Maven artifacts are now `mauzun`,
+  `mauzun-api`, `mauzun-compose`, `mauzun-test`, `mauzun-hilt`, and `mauzun-metro`.
+- Move the public API from `io.github.raheelnaz.molecule` to `io.github.raheelnaz.mauzun`.
+  `MoleculeViewModel`, `moleculeViewModel()`, `hiltMoleculeViewModel()`,
+  `metroMoleculeViewModel()`, `assistedMetroMoleculeViewModel()`, and `MoleculeTestScope` become
+  `MauzunViewModel`, `mauzunViewModel()`, `hiltMauzunViewModel()`,
+  `metroMauzunViewModel()`, `assistedMetroMauzunViewModel()`, and `MauzunTestScope`.
+  `MoleculeViewModelAdapterApi` and `MoleculeViewModelTestingApi` become
+  `MauzunViewModelAdapterApi` and `MauzunViewModelTestingApi`. `PresenterBinding`,
+  `PresenterEntry`, and `PresenterHost` keep their names.
+- Keep the 0.9.0 saved-state keys unchanged so `rememberSaveable` values restore after an app
+  upgrades to Mauzun. The old strings are an internal persistence contract, not old public API.
+
 ## [0.9.0] - 2026-08-11
 
 - Add the optional `molecule-viewmodel-metro` adapter. It wraps Metro's Compose retrieval and

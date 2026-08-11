@@ -1,6 +1,0 @@
-public abstract interface class io/github/raheelnaz/molecule/PresenterBinding {
-	public abstract fun getEffects ()Lkotlinx/coroutines/flow/Flow;
-	public abstract fun getState ()Lkotlinx/coroutines/flow/StateFlow;
-	public abstract fun onEvent (Ljava/lang/Object;)V
-}
-

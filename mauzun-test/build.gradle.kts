@@ -1,13 +1,12 @@
-// Compiles the README's Metro examples with the real Metro compiler plugin.
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.metro)
+    alias(libs.plugins.maven.publish)
 }
 
 android {
-    namespace = "io.github.raheelnaz.mauzun.metrocheck"
+    namespace = "io.github.raheelnaz.mauzun.test"
     compileSdk = 36
 
     defaultConfig {
@@ -26,14 +25,20 @@ android {
 }
 
 kotlin {
+    explicitApi()
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
 dependencies {
-    implementation(project(":mauzun-metro"))
+    api(project(":mauzun"))
+    api(libs.kotlinx.coroutines.core)
 
-    testImplementation(libs.assertk)
+    implementation(libs.molecule.runtime)
+    implementation(libs.turbine)
+
     testImplementation(libs.junit)
+    testImplementation(libs.assertk)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

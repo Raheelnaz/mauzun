@@ -1,0 +1,5 @@
+public final class io/github/raheelnaz/mauzun/hilt/-HiltMauzunViewModel {
+	public static final fun defaultCreationExtras (Landroidx/lifecycle/ViewModelStoreOwner;)Landroidx/lifecycle/viewmodel/CreationExtras;
+	public static final fun requireUsableKey (Ljava/lang/String;)V
+}
+
