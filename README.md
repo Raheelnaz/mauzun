@@ -1,11 +1,12 @@
-# molecule-viewmodel
+# Mauzun
 
-[![build](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml?query=branch%3Amain)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/molecule-viewmodel)](https://central.sonatype.com/artifact/io.github.raheelnaz/molecule-viewmodel)
+[![build](https://github.com/Raheelnaz/mauzun/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/Raheelnaz/mauzun/actions/workflows/build.yaml?query=branch%3Amain)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/mauzun)](https://central.sonatype.com/artifact/io.github.raheelnaz/mauzun)
 
-Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
+Mauzun (موزوں, "well-balanced") uses a
+[Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
 
-`MoleculeViewModel` runs a composable presenter in `viewModelScope`. The screen reads models from
+`MauzunViewModel` runs a composable presenter in `viewModelScope`. The screen reads models from
 a `StateFlow`, sends events, and receives one-time effects. The test artifact runs the same
 presenter directly on the JVM.
 
@@ -15,7 +16,7 @@ sees only the binding contract.
 ## Quick start
 
 ```kotlin
-class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEffect>() {
+class CounterViewModel : MauzunViewModel<CounterEvent, CounterState, CounterEffect>() {
 
     @Composable
     override fun present(events: Flow<CounterEvent>): CounterState {
@@ -36,7 +37,7 @@ class CounterViewModel : MoleculeViewModel<CounterEvent, CounterState, CounterEf
 Render it from Compose:
 
 ```kotlin
-val presenter = moleculeViewModel<CounterViewModel>()
+val presenter = mauzunViewModel<CounterViewModel>()
 
 PresenterHost(
     presenter = presenter,
@@ -70,30 +71,30 @@ fun increment() = runTest {
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.9.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.9.0")
+implementation("io.github.raheelnaz:mauzun:0.10.0")
+testImplementation("io.github.raheelnaz:mauzun-test:0.10.0")
 ```
 
 Hilt users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.9.0")
+implementation("io.github.raheelnaz:mauzun-hilt:0.10.0")
 ```
 
 Metro users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-metro:0.9.0")
+implementation("io.github.raheelnaz:mauzun-metro:0.10.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
-module that subclasses `MoleculeViewModel`.
+module that subclasses `MauzunViewModel`.
 
-`molecule-viewmodel-api` and `molecule-viewmodel-compose` arrive transitively with the main
+`mauzun-api` and `mauzun-compose` arrive transitively with the main
 artifact. A UI module that receives a `PresenterBinding` can depend on the Compose host alone:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-compose:0.9.0")
+implementation("io.github.raheelnaz:mauzun-compose:0.10.0")
 ```
 
 Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test
@@ -129,7 +130,7 @@ produces the first model during that read, so `state.value` is available as soon
 returns. That first composition runs on whichever thread reads `state` first, so make the first
 read on Main. Later models are conflated by equality, like any other `StateFlow`.
 
-The ViewModel does not expose `state`, `effects`, or its binding. `moleculeViewModel()` returns a
+The ViewModel does not expose `state`, `effects`, or its binding. `mauzunViewModel()` returns a
 `PresenterEntry`, and `PresenterHost` reads the entry's binding for you. The entry does not
 expose the underlying ViewModel.
 
@@ -137,7 +138,7 @@ At a module boundary, pass only the binding:
 
 ```kotlin
 // app module
-val presenter = moleculeViewModel<ProductViewModel>()
+val presenter = mauzunViewModel<ProductViewModel>()
 ProductUi(presenter.binding)
 
 // feature UI module
@@ -149,7 +150,7 @@ fun ProductUi(binding: PresenterBinding<ProductEvent, ProductState, ProductEffec
 }
 ```
 
-`ProductUi` can live in a module that depends on `molecule-viewmodel-compose` instead of the
+`ProductUi` can live in a module that depends on `mauzun-compose` instead of the
 ViewModel runtime.
 
 ### Events
@@ -270,22 +271,22 @@ read.
 
 ## Saved state
 
-`moleculeViewModel()` lets a presenter use `rememberSaveable`. It installs saved state before it
+`mauzunViewModel()` lets a presenter use `rememberSaveable`. It installs saved state before it
 returns the entry, so the first composition can restore values after process recreation.
 
 ```kotlin
-val presenter = moleculeViewModel<ProductViewModel>()
+val presenter = mauzunViewModel<ProductViewModel>()
 ```
 
 The entry is the only supported production route to the binding. Saved state therefore attaches
-before UI code can start the presenter. A `MoleculeViewModel` subclass cannot read its own produced
+before UI code can start the presenter. A `MauzunViewModel` subclass cannot read its own produced
 state, including from its constructor, `init` block, or `present` function. An injected
 `SavedStateHandle` remains available for application state that does not belong in
 `rememberSaveable`.
 
 ## Hilt
 
-Hilt is optional. Use `hiltMoleculeViewModel()` instead of `hiltViewModel()` to obtain the same
+Hilt is optional. Use `hiltMauzunViewModel()` instead of `hiltViewModel()` to obtain the same
 entry while Hilt creates the ViewModel. Constructor injection, assisted injection, scoping, and
 `SavedStateHandle` all work the way Hilt users expect.
 
@@ -297,7 +298,7 @@ Add `@HiltViewModel` to an ordinary constructor-injected class:
 @HiltViewModel
 class ProductListViewModel @Inject constructor(
     private val repository: ProductRepository,
-) : MoleculeViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
+) : MauzunViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
 
     @Composable
     override fun present(events: Flow<ProductListEvent>): ProductListState = TODO()
@@ -309,7 +310,7 @@ Retrieve and render it from the destination:
 ```kotlin
 @Composable
 fun ProductListRoute(onOpenProduct: (String) -> Unit) {
-    val presenter = hiltMoleculeViewModel<ProductListViewModel>()
+    val presenter = hiltMauzunViewModel<ProductListViewModel>()
 
     PresenterHost(
         presenter = presenter,
@@ -335,7 +336,7 @@ Inject a `SavedStateHandle` normally when you want one:
 class SearchViewModel @Inject constructor(
     private val repository: SearchRepository,
     private val savedStateHandle: SavedStateHandle,
-) : MoleculeViewModel<SearchEvent, SearchState, SearchEffect>() {
+) : MauzunViewModel<SearchEvent, SearchState, SearchEffect>() {
 
     @Composable
     override fun present(events: Flow<SearchEvent>): SearchState = TODO()
@@ -355,7 +356,7 @@ Use assisted injection when the ViewModel needs a runtime argument:
 class ProductDetailsViewModel @AssistedInject constructor(
     @Assisted private val productId: String,
     private val repository: ProductRepository,
-) : MoleculeViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
+) : MauzunViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
 
     @AssistedFactory
     interface Factory {
@@ -370,7 +371,7 @@ class ProductDetailsViewModel @AssistedInject constructor(
 Pass the assisted value at retrieval:
 
 ```kotlin
-val presenter = hiltMoleculeViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory>(
+val presenter = hiltMauzunViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory>(
     creationCallback = { factory -> factory.create(productId) },
 )
 ```
@@ -381,7 +382,7 @@ instances.
 
 ### Scoping and keys
 
-`hiltMoleculeViewModel()` uses `LocalViewModelStoreOwner` by default. Under Navigation 3's
+`hiltMauzunViewModel()` uses `LocalViewModelStoreOwner` by default. Under Navigation 3's
 ViewModelStore decorator that owner is the destination, so the ViewModel lives while its entry is
 on the back stack and clears when the entry is removed. Pass `viewModelStoreOwner` for a different
 scope, and a `key` when several presenters of one class share an owner.
@@ -397,7 +398,7 @@ as the
 [metrox-viewmodel-compose](https://github.com/ZacSweers/metro/blob/main/metrox-viewmodel-compose/README.md)
 READMEs show, then provide the factory at the app root. Retrieval throws without it. A complete
 setup lives in
-[`MetroCheckGraph.kt`](metro-check/src/main/java/io/github/raheelnaz/molecule/metrocheck/MetroCheckGraph.kt),
+[`MetroCheckGraph.kt`](metro-check/src/main/java/io/github/raheelnaz/mauzun/metrocheck/MetroCheckGraph.kt),
 compiled with the real Metro plugin:
 
 ```kotlin
@@ -409,7 +410,7 @@ CompositionLocalProvider(
 ```
 
 Contribute the ViewModel, with an explicit `binding<ViewModel>()` because its immediate
-supertype is `MoleculeViewModel`:
+supertype is `MauzunViewModel`:
 
 ```kotlin
 @Inject
@@ -417,17 +418,17 @@ supertype is `MoleculeViewModel`:
 @ContributesIntoMap(AppScope::class, binding<ViewModel>())
 class ProductListViewModel(
     private val repository: ProductRepository,
-) : MoleculeViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
+) : MauzunViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
 
     @Composable
     override fun present(events: Flow<ProductListEvent>): ProductListState = TODO()
 }
 ```
 
-Retrieve it with `metroMoleculeViewModel()` instead of `metroViewModel()`:
+Retrieve it with `metroMauzunViewModel()` instead of `metroViewModel()`:
 
 ```kotlin
-val presenter = metroMoleculeViewModel<ProductListViewModel>()
+val presenter = metroMauzunViewModel<ProductListViewModel>()
 ```
 
 For a runtime argument, use assisted injection and contribute the factory:
@@ -437,7 +438,7 @@ For a runtime argument, use assisted injection and contribute the factory:
 class ProductDetailsViewModel(
     @Assisted private val productId: String,
     private val repository: ProductRepository,
-) : MoleculeViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
+) : MauzunViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
 
     @AssistedFactory
     @ManualViewModelAssistedFactoryKey
@@ -455,7 +456,7 @@ Metro resolves the factory, and the lambda runs with it as the receiver:
 
 ```kotlin
 val presenter =
-    assistedMetroMoleculeViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory> {
+    assistedMetroMauzunViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory> {
         create(productId)
     }
 ```
@@ -465,15 +466,15 @@ left for Metro to resolve. A Navigation 3 entry provider is one common place for
 creation to the core retrieval:
 
 ```kotlin
-val presenter = moleculeViewModel<ProductDetailsViewModel> {
+val presenter = mauzunViewModel<ProductDetailsViewModel> {
     detailsFactory.create(productId)
 }
 ```
 
 A `ViewModelAssistedFactory` that builds from `CreationExtras` has its own overload,
-`assistedMetroMoleculeViewModel<VM>()`.
+`assistedMetroMauzunViewModel<VM>()`.
 
-Saved state attaches the same as `moleculeViewModel()`. Assisted parameters are not saved, so
+Saved state attaches the same as `mauzunViewModel()`. Assisted parameters are not saved, so
 reconstruct them from navigation state and pass identifiers rather than instances.
 
 ## Navigation 3
@@ -512,8 +513,8 @@ no-argument base constructor.
 The project is pre-1.0. Minor releases may change the public API. See [CHANGELOG.md](CHANGELOG.md)
 before upgrading.
 
-Molecule is maintained by [Cash App](https://github.com/cashapp/molecule). This project provides
-the Android ViewModel and testing integration around it.
+Molecule is maintained by [Cash App](https://github.com/cashapp/molecule). Mauzun provides the
+Android ViewModel and testing integration around it.
 
 ## License
 

@@ -22,13 +22,13 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "molecule-viewmodel"
+rootProject.name = "mauzun"
 include(
-    ":molecule-viewmodel",
-    ":molecule-viewmodel-api",
-    ":molecule-viewmodel-compose",
-    ":molecule-viewmodel-hilt",
-    ":molecule-viewmodel-metro",
+    ":mauzun",
+    ":mauzun-api",
+    ":mauzun-compose",
+    ":mauzun-hilt",
+    ":mauzun-metro",
     ":metro-check",
-    ":molecule-viewmodel-test",
+    ":mauzun-test",
 )

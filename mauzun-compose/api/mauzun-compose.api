@@ -1,0 +1,4 @@
+public final class io/github/raheelnaz/mauzun/PresenterBindingHostKt {
+	public static final fun PresenterHost (Lio/github/raheelnaz/mauzun/PresenterBinding;Lkotlin/jvm/functions/Function2;Landroidx/lifecycle/Lifecycle$State;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
+}
+
