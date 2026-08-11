@@ -1,6 +1,6 @@
 # molecule-viewmodel
 
-[![build](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml/badge.svg)](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml)
+[![build](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/Raheelnaz/molecule-viewmodel/actions/workflows/build.yaml?query=branch%3Amain)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/molecule-viewmodel)](https://central.sonatype.com/artifact/io.github.raheelnaz/molecule-viewmodel)
 
 Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
