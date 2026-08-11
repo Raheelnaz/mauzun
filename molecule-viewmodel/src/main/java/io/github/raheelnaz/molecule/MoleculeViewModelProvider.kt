@@ -54,6 +54,40 @@ public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
 }
 
 /**
+ * Returns a [PresenterEntry] for a ViewModel built by [create] when [viewModelStoreOwner] holds
+ * none. Use it to hand an assisted factory its runtime argument:
+ *
+ * ```
+ * val presenter = moleculeViewModel<DetailViewModel> { detailFactory.create(gtin) }
+ * ```
+ *
+ * An owner that already holds the ViewModel keeps it and [create] never runs, so a captured
+ * argument only reaches a ViewModel created now. Give each argument's screen its own owner or
+ * key, the way a Navigation 3 entry does.
+ *
+ * [create] receives the [CreationExtras], so `createSavedStateHandle()` works inside it.
+ */
+@Composable
+public inline fun <reified VM : MoleculeViewModel<*, *, *>> moleculeViewModel(
+    key: String? = null,
+    viewModelStoreOwner: ViewModelStoreOwner =
+        checkNotNull(LocalViewModelStoreOwner.current) {
+            "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
+        },
+    extras: CreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
+        viewModelStoreOwner.defaultViewModelCreationExtras
+    } else {
+        CreationExtras.Empty
+    },
+    noinline create: CreationExtras.() -> VM,
+): PresenterEntry<VM> = moleculeViewModel(
+    key = key,
+    viewModelStoreOwner = viewModelStoreOwner,
+    factory = viewModelFactory { initializer { create() } },
+    extras = extras,
+)
+
+/**
  * Creates an entry for a ViewModel obtained by another integration.
  *
  * Adapters must obtain the ViewModel inside [viewModel] and pass the same owner, key, requested

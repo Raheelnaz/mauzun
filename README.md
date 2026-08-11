@@ -70,14 +70,20 @@ fun increment() = runTest {
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel:0.8.0")
-testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.8.0")
+implementation("io.github.raheelnaz:molecule-viewmodel:0.9.0")
+testImplementation("io.github.raheelnaz:molecule-viewmodel-test:0.9.0")
 ```
 
 Hilt users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.8.0")
+implementation("io.github.raheelnaz:molecule-viewmodel-hilt:0.9.0")
+```
+
+Metro users can add the optional adapter:
+
+```kotlin
+implementation("io.github.raheelnaz:molecule-viewmodel-metro:0.9.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
@@ -87,7 +93,7 @@ module that subclasses `MoleculeViewModel`.
 artifact. A UI module that receives a `PresenterBinding` can depend on the Compose host alone:
 
 ```kotlin
-implementation("io.github.raheelnaz:molecule-viewmodel-compose:0.8.0")
+implementation("io.github.raheelnaz:molecule-viewmodel-compose:0.9.0")
 ```
 
 Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test
@@ -382,6 +388,93 @@ scope, and a `key` when several presenters of one class share an owner.
 
 Presenter unit tests do not need Hilt. Construct the ViewModel with fake dependencies and use the
 test harness directly.
+
+## Metro
+
+Metro is optional. Extend MetroX's `ViewModelGraph` and contribute a `MetroViewModelFactory`,
+as the
+[metrox-viewmodel](https://github.com/ZacSweers/metro/blob/main/metrox-viewmodel/README.md) and
+[metrox-viewmodel-compose](https://github.com/ZacSweers/metro/blob/main/metrox-viewmodel-compose/README.md)
+READMEs show, then provide the factory at the app root. Retrieval throws without it. A complete
+setup lives in
+[`MetroCheckGraph.kt`](metro-check/src/main/java/io/github/raheelnaz/molecule/metrocheck/MetroCheckGraph.kt),
+compiled with the real Metro plugin:
+
+```kotlin
+CompositionLocalProvider(
+    LocalMetroViewModelFactory provides appGraph.metroViewModelFactory,
+) {
+    App()
+}
+```
+
+Contribute the ViewModel, with an explicit `binding<ViewModel>()` because its immediate
+supertype is `MoleculeViewModel`:
+
+```kotlin
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class, binding<ViewModel>())
+class ProductListViewModel(
+    private val repository: ProductRepository,
+) : MoleculeViewModel<ProductListEvent, ProductListState, ProductListEffect>() {
+
+    @Composable
+    override fun present(events: Flow<ProductListEvent>): ProductListState = TODO()
+}
+```
+
+Retrieve it with `metroMoleculeViewModel()` instead of `metroViewModel()`:
+
+```kotlin
+val presenter = metroMoleculeViewModel<ProductListViewModel>()
+```
+
+For a runtime argument, use assisted injection and contribute the factory:
+
+```kotlin
+@AssistedInject
+class ProductDetailsViewModel(
+    @Assisted private val productId: String,
+    private val repository: ProductRepository,
+) : MoleculeViewModel<ProductDetailsEvent, ProductDetailsState, ProductDetailsEffect>() {
+
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(productId: String): ProductDetailsViewModel
+    }
+
+    @Composable
+    override fun present(events: Flow<ProductDetailsEvent>): ProductDetailsState = TODO()
+}
+```
+
+Metro resolves the factory, and the lambda runs with it as the receiver:
+
+```kotlin
+val presenter =
+    assistedMetroMoleculeViewModel<ProductDetailsViewModel, ProductDetailsViewModel.Factory> {
+        create(productId)
+    }
+```
+
+When the generated factory is already injected into the destination builder, there is nothing
+left for Metro to resolve. A Navigation 3 entry provider is one common place for this. Hand the
+creation to the core retrieval:
+
+```kotlin
+val presenter = moleculeViewModel<ProductDetailsViewModel> {
+    detailsFactory.create(productId)
+}
+```
+
+A `ViewModelAssistedFactory` that builds from `CreationExtras` has its own overload,
+`assistedMetroMoleculeViewModel<VM>()`.
+
+Saved state attaches the same as `moleculeViewModel()`. Assisted parameters are not saved, so
+reconstruct them from navigation state and pass identifiers rather than instances.
 
 ## Navigation 3
 
