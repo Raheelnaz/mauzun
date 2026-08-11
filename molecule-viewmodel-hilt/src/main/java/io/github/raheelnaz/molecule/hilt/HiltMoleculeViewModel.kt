@@ -69,8 +69,8 @@ internal fun defaultCreationExtras(owner: ViewModelStoreOwner): CreationExtras =
         CreationExtras.Empty
     }
 
-// hiltViewModel runs before the core module can validate, so the reserved prefix check lives
-// here too. It must stay identical to the core module's, and persistence freezes both.
+// The core module checks this too, but here a bad key fails before any hilt code runs. Keep
+// it identical to the core check. The prefix can never change once devices hold saved state.
 @PublishedApi
 internal fun requireUsableKey(key: String?) {
     require(
