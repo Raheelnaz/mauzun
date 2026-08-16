@@ -3,13 +3,11 @@ package io.github.raheelnaz.mauzun.metro
 import android.os.Bundle
 import android.os.Parcel
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.InternalComposeApi
-import androidx.compose.runtime.ProvidedValue
-import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withCompositionLocals
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
@@ -153,24 +151,11 @@ private class Host(
     }
 }
 
-@Composable
-@OptIn(InternalComposeApi::class)
-private fun <T> withCompositionLocals(
-    values: Array<ProvidedValue<*>>,
-    content: @Composable () -> T,
-): T {
-    val composer = currentComposer
-    composer.startProviders(values)
-    val result = content()
-    composer.endProviders()
-    return result
-}
-
 private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.obtainStandard(
     factory: MetroViewModelFactory,
     key: String? = null,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(arrayOf(LocalMetroViewModelFactory provides factory)) {
+    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
         metroMauzunViewModel<VM>(
             viewModelStoreOwner = this@obtainStandard,
             key = key,
@@ -183,7 +168,7 @@ private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.obtainAs
     key: String? = null,
     extras: CreationExtras = defaultViewModelCreationExtras,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(arrayOf(LocalMetroViewModelFactory provides factory)) {
+    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
         assistedMetroMauzunViewModel<VM>(
             viewModelStoreOwner = this@obtainAssisted,
             key = key,
@@ -201,7 +186,7 @@ private suspend inline fun <
     extras: CreationExtras = defaultViewModelCreationExtras,
     crossinline createViewModel: FactoryType.(CreationExtras) -> VM,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(arrayOf(LocalMetroViewModelFactory provides factory)) {
+    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
         assistedMetroMauzunViewModel<VM, FactoryType>(
             viewModelStoreOwner = this@obtainManuallyAssisted,
             key = key,
@@ -413,10 +398,8 @@ class MetroMauzunViewModelTest {
 
         val entry = moleculeFlow(RecompositionMode.Immediate) {
             withCompositionLocals(
-                arrayOf(
-                    LocalMetroViewModelFactory provides factory,
-                    LocalViewModelStoreOwner provides host,
-                ),
+                LocalMetroViewModelFactory provides factory,
+                LocalViewModelStoreOwner provides host,
             ) {
                 metroMauzunViewModel<SaveableMetroViewModel>()
             }
