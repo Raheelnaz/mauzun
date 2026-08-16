@@ -3,9 +3,20 @@
   "extends": ["config:recommended"],
   "packageRules": [
     {
-      "description": "The runtime dependency stays at the floor Molecule sets, consumers pick their own Compose version.",
-      "matchPackageNames": ["androidx.compose.runtime:runtime"],
+      "description": "AGP 9 waits for the built-in Kotlin migration, following Molecule.",
+      "matchPackageNames": ["com.android.library"],
+      "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "Compose 1.12 needs AGP 9.1 and compileSdk 37. Stay below until AGP 9 lands.",
+      "matchPackageNames": ["androidx.compose.runtime:**"],
+      "allowedVersions": "<1.12"
+    },
+    {
+      "description": "Lifecycle 2.11 needs AGP 9.1 and compileSdk 37. Stay below until AGP 9 lands.",
+      "matchPackageNames": ["androidx.lifecycle:**"],
+      "allowedVersions": "<2.11"
     },
     {
       "description": "Gradle 9.6 drops the internal API AGP 8 uses. Stay below it until the AGP 9 built-in Kotlin migration.",
