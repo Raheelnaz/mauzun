@@ -70,20 +70,20 @@ fun increment() = runTest {
 ## Installation
 
 ```kotlin
-implementation("io.github.raheelnaz:mauzun:0.11.0")
-testImplementation("io.github.raheelnaz:mauzun-test:0.11.0")
+implementation("io.github.raheelnaz:mauzun:0.12.0")
+testImplementation("io.github.raheelnaz:mauzun-test:0.12.0")
 ```
 
 Hilt users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:mauzun-hilt:0.11.0")
+implementation("io.github.raheelnaz:mauzun-hilt:0.12.0")
 ```
 
 Metro users can add the optional adapter:
 
 ```kotlin
-implementation("io.github.raheelnaz:mauzun-metro:0.11.0")
+implementation("io.github.raheelnaz:mauzun-metro:0.12.0")
 ```
 
 The library requires minSdk 23 and Kotlin 2.3 or newer. Apply the Compose compiler plugin to the
@@ -93,7 +93,7 @@ module that subclasses `MauzunViewModel`.
 artifact. A UI module that receives a `PresenterBinding` can depend on the Compose host alone:
 
 ```kotlin
-implementation("io.github.raheelnaz:mauzun-compose:0.11.0")
+implementation("io.github.raheelnaz:mauzun-compose:0.12.0")
 ```
 
 Unit tests also need `kotlinx-coroutines-test`. Compose calls `android.util.Log` on some JVM test

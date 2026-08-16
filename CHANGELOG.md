@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.12.0] - 2026-08-16
 
 - Provide the lifecycle from `mauzunViewModel()` to the presenter. A presenter can pause
   individual Flows while its screen is covered. The composition keeps running, so remembered
