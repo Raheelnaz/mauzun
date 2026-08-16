@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.hasMessage
@@ -14,7 +16,9 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 import io.github.raheelnaz.mauzun.MauzunViewModel
+import io.github.raheelnaz.mauzun.collectAsStateWhileActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -61,7 +65,40 @@ private class TwoCollectorViewModel(
     }
 }
 
+private class LifecycleViewModel : MauzunViewModel<Nothing, Lifecycle, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Nothing>): Lifecycle =
+        LocalLifecycleOwner.current.lifecycle
+}
+
+private class WhileActiveViewModel(
+    private val source: MutableStateFlow<Int>,
+) : MauzunViewModel<Nothing, Int, Nothing>() {
+    @Composable
+    override fun present(events: Flow<Nothing>): Int {
+        val value by source.collectAsStateWhileActive()
+        return value
+    }
+}
+
 class MauzunTestHarnessTest {
+
+    @Test
+    fun `presenters run with a resumed lifecycle`() = runTest {
+        LifecycleViewModel().test {
+            assertThat(awaitState().currentState).isEqualTo(Lifecycle.State.RESUMED)
+        }
+    }
+
+    @Test
+    fun `collectAsStateWhileActive needs no main dispatcher`() = runTest {
+        val source = MutableStateFlow(1)
+        WhileActiveViewModel(source).test {
+            assertThat(awaitState()).isEqualTo(1)
+            source.value = 2
+            assertThat(awaitState()).isEqualTo(2)
+        }
+    }
 
     @Test
     fun `sendEvent completes its cascade before returning`() = runTest {

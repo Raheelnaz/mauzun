@@ -18,6 +18,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.enableSavedStateHandles
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
@@ -155,7 +156,10 @@ private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.obtainSt
     factory: MetroViewModelFactory,
     key: String? = null,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
+    withCompositionLocals(
+        LocalMetroViewModelFactory provides factory,
+        LocalLifecycleOwner provides this@obtainStandard,
+    ) {
         metroMauzunViewModel<VM>(
             viewModelStoreOwner = this@obtainStandard,
             key = key,
@@ -168,7 +172,10 @@ private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.obtainAs
     key: String? = null,
     extras: CreationExtras = defaultViewModelCreationExtras,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
+    withCompositionLocals(
+        LocalMetroViewModelFactory provides factory,
+        LocalLifecycleOwner provides this@obtainAssisted,
+    ) {
         assistedMetroMauzunViewModel<VM>(
             viewModelStoreOwner = this@obtainAssisted,
             key = key,
@@ -186,7 +193,10 @@ private suspend inline fun <
     extras: CreationExtras = defaultViewModelCreationExtras,
     crossinline createViewModel: FactoryType.(CreationExtras) -> VM,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    withCompositionLocals(LocalMetroViewModelFactory provides factory) {
+    withCompositionLocals(
+        LocalMetroViewModelFactory provides factory,
+        LocalLifecycleOwner provides this@obtainManuallyAssisted,
+    ) {
         assistedMetroMauzunViewModel<VM, FactoryType>(
             viewModelStoreOwner = this@obtainManuallyAssisted,
             key = key,
@@ -399,6 +409,7 @@ class MetroMauzunViewModelTest {
         val entry = moleculeFlow(RecompositionMode.Immediate) {
             withCompositionLocals(
                 LocalMetroViewModelFactory provides factory,
+                LocalLifecycleOwner provides host,
                 LocalViewModelStoreOwner provides host,
             ) {
                 metroMauzunViewModel<SaveableMetroViewModel>()

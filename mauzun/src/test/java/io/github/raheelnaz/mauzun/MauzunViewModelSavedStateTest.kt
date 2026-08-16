@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withCompositionLocals
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
@@ -18,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.enableSavedStateHandles
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
@@ -189,11 +191,13 @@ private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.obtain(
     key: String? = null,
     factory: ViewModelProvider.Factory? = null,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    mauzunViewModel<VM>(
-        key = key,
-        viewModelStoreOwner = this@obtain,
-        factory = factory,
-    )
+    withLifecycle {
+        mauzunViewModel<VM>(
+            key = key,
+            viewModelStoreOwner = this@obtain,
+            factory = factory,
+        )
+    }
 }.first()
 
 @OptIn(MauzunViewModelAdapterApi::class)
@@ -201,13 +205,19 @@ private suspend inline fun <reified VM : MauzunViewModel<*, *, *>> Host.attach(
     viewModel: VM,
     key: String? = null,
 ): PresenterEntry<VM> = moleculeFlow(RecompositionMode.Immediate) {
-    mauzunPresenterEntry(
-        key = key,
-        modelClass = VM::class.java,
-        viewModelStoreOwner = this@attach,
-        extras = defaultViewModelCreationExtras,
-    ) { viewModel }
+    withLifecycle {
+        mauzunPresenterEntry(
+            key = key,
+            modelClass = VM::class.java,
+            viewModelStoreOwner = this@attach,
+            extras = defaultViewModelCreationExtras,
+        ) { viewModel }
+    }
 }.first()
+
+@Composable
+private fun <T> Host.withLifecycle(content: @Composable () -> T): T =
+    withCompositionLocals(LocalLifecycleOwner provides this, content = content)
 
 private fun Bundle.parcelled(): Bundle {
     val parcel = Parcel.obtain()
@@ -359,8 +369,10 @@ class MauzunViewModelSavedStateTest {
     fun `restoration works through the create overload`() = runTest(dispatcher) {
         val firstHost = Host()
         val first = moleculeFlow(RecompositionMode.Immediate) {
-            mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = firstHost) {
-                SaveableViewModel()
+            firstHost.withLifecycle {
+                mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = firstHost) {
+                    SaveableViewModel()
+                }
             }
         }.first()
         first.binding.state
@@ -373,8 +385,10 @@ class MauzunViewModelSavedStateTest {
 
         val secondHost = Host(saved)
         val second = moleculeFlow(RecompositionMode.Immediate) {
-            mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = secondHost) {
-                SaveableViewModel()
+            secondHost.withLifecycle {
+                mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = secondHost) {
+                    SaveableViewModel()
+                }
             }
         }.first()
 
@@ -387,9 +401,11 @@ class MauzunViewModelSavedStateTest {
         val host = Host()
         var creations = 0
         suspend fun obtain(key: String? = null) = moleculeFlow(RecompositionMode.Immediate) {
-            mauzunViewModel<SaveableViewModel>(key = key, viewModelStoreOwner = host) {
-                creations++
-                SaveableViewModel()
+            host.withLifecycle {
+                mauzunViewModel<SaveableViewModel>(key = key, viewModelStoreOwner = host) {
+                    creations++
+                    SaveableViewModel()
+                }
             }
         }.first()
 
@@ -404,9 +420,11 @@ class MauzunViewModelSavedStateTest {
 
         val otherHost = Host()
         val other = moleculeFlow(RecompositionMode.Immediate) {
-            mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = otherHost) {
-                creations++
-                SaveableViewModel()
+            otherHost.withLifecycle {
+                mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = otherHost) {
+                    creations++
+                    SaveableViewModel()
+                }
             }
         }.first()
         assertThat(creations).isEqualTo(3)
@@ -421,7 +439,11 @@ class MauzunViewModelSavedStateTest {
         runTest(dispatcher) {
             val host = Host()
             suspend fun obtain(arg: String) = moleculeFlow(RecompositionMode.Immediate) {
-                mauzunViewModel<ArgViewModel>(viewModelStoreOwner = host) { ArgViewModel(arg) }
+                host.withLifecycle {
+                    mauzunViewModel<ArgViewModel>(viewModelStoreOwner = host) {
+                        ArgViewModel(arg)
+                    }
+                }
             }.first()
 
             val first = obtain("a")
@@ -436,8 +458,10 @@ class MauzunViewModelSavedStateTest {
     fun `the creator receives creation extras`() = runTest(dispatcher) {
         val host = Host()
         val entry = moleculeFlow(RecompositionMode.Immediate) {
-            mauzunViewModel<OwnHandleViewModel>(viewModelStoreOwner = host) {
-                OwnHandleViewModel(createSavedStateHandle())
+            host.withLifecycle {
+                mauzunViewModel<OwnHandleViewModel>(viewModelStoreOwner = host) {
+                    OwnHandleViewModel(createSavedStateHandle())
+                }
             }
         }.first()
 
@@ -450,8 +474,10 @@ class MauzunViewModelSavedStateTest {
         val host = Host()
         val outcome = runCatching {
             moleculeFlow(RecompositionMode.Immediate) {
-                mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = host) {
-                    error("creator failed")
+                host.withLifecycle {
+                    mauzunViewModel<SaveableViewModel>(viewModelStoreOwner = host) {
+                        error("creator failed")
+                    }
                 }
             }.first()
         }

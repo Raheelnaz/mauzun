@@ -14,7 +14,7 @@ import io.github.raheelnaz.mauzun.MauzunViewModelAdapterApi
 import io.github.raheelnaz.mauzun.PresenterEntry
 import io.github.raheelnaz.mauzun.mauzunPresenterEntry
 
-/** Returns a Hilt-created [PresenterEntry] with `rememberSaveable` support. */
+/** Returns a Hilt-created [PresenterEntry] with `rememberSaveable` and lifecycle support. */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)
 public inline fun <reified VM : MauzunViewModel<*, *, *>> hiltMauzunViewModel(
@@ -35,7 +35,7 @@ public inline fun <reified VM : MauzunViewModel<*, *, *>> hiltMauzunViewModel(
     }
 }
 
-/** Returns an assisted Hilt [PresenterEntry] with `rememberSaveable` support. */
+/** Returns an assisted Hilt [PresenterEntry] with `rememberSaveable` and lifecycle support. */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)
 public inline fun <reified VM : MauzunViewModel<*, *, *>, reified VMF> hiltMauzunViewModel(

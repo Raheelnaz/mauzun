@@ -5,8 +5,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
-import androidx.compose.runtime.withCompositionLocal
+import androidx.compose.runtime.withCompositionLocals
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import app.cash.molecule.RecompositionMode
 import app.cash.molecule.launchMolecule
@@ -39,6 +41,7 @@ public abstract class MauzunViewModel<Event : Any, Model : Any, Effect : Any> :
     private var startFailure: Throwable? = null
     private val startLock = Any()
     private var presenterSavedState: PresenterSavedState? = null
+    private val presenterLifecycleOwner = PresenterLifecycleOwner()
 
     // Immediate makes state.value available on the first read. The lazy and attachSavedState
     // share startLock, so an attach cannot race the first read.
@@ -64,16 +67,12 @@ public abstract class MauzunViewModel<Event : Any, Model : Any, Effect : Any> :
                 mode = RecompositionMode.Immediate,
                 context = Dispatchers.Main,
             ) {
-                withCompositionLocal(LocalPresenterComposition provides true) {
-                    if (savedState == null) {
-                        present(events)
-                    } else {
-                        withCompositionLocal(
-                            LocalSaveableStateRegistry provides savedState.registry,
-                        ) {
-                            present(events)
-                        }
-                    }
+                withCompositionLocals(
+                    LocalPresenterComposition provides true,
+                    LocalLifecycleOwner provides presenterLifecycleOwner,
+                    LocalSaveableStateRegistry provides savedState?.registry,
+                ) {
+                    present(events)
                 }
             }
             // Main queues the relay until every initial event collector has subscribed.
@@ -158,9 +157,13 @@ public abstract class MauzunViewModel<Event : Any, Model : Any, Effect : Any> :
         }
     }
 
+    internal fun attachLifecycle(lifecycle: Lifecycle): () -> Unit =
+        presenterLifecycleOwner.attach(lifecycle)
+
     /** Register subclass cleanup with [addCloseable]. */
     final override fun onCleared() {
         super.onCleared()
+        presenterLifecycleOwner.clear()
         eventChannel.close()
         effectChannel.close()
     }
