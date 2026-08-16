@@ -41,6 +41,7 @@ dependencies {
     api(libs.androidx.lifecycle.viewmodel.ktx)
 
     implementation(libs.molecule.runtime)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.savedstate)
 

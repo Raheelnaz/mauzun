@@ -1,5 +1,10 @@
 package io.github.raheelnaz.mauzun.test
 
+import androidx.compose.runtime.withCompositionLocals
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.cash.molecule.RecompositionMode
 import app.cash.molecule.moleculeFlow
 import app.cash.turbine.ReceiveTurbine
@@ -37,7 +42,12 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MauzunViewModel<Even
     val eventsFlow = events.receiveAsFlow().shareIn(eventsScope, SharingStarted.Lazily)
 
     val effectsTurbine = effectsForTest().testIn(this)
-    val stateTurbine = moleculeFlow(RecompositionMode.Immediate) { present(eventsFlow) }
+    val lifecycleOwner = ResumedLifecycleOwner()
+    val stateTurbine = moleculeFlow(RecompositionMode.Immediate) {
+        withCompositionLocals(LocalLifecycleOwner provides lifecycleOwner) {
+            present(eventsFlow)
+        }
+    }
         // Match StateFlow's equality-based conflation.
         .distinctUntilChanged()
         .testIn(this)
@@ -52,6 +62,14 @@ public suspend fun <Event : Any, Model : Any, Effect : Any> MauzunViewModel<Even
         events.close()
         eventsJob.cancel()
     }
+}
+
+private class ResumedLifecycleOwner : LifecycleOwner {
+    private val registry = LifecycleRegistry.createUnsafe(this).apply {
+        currentState = Lifecycle.State.RESUMED
+    }
+
+    override val lifecycle: Lifecycle get() = registry
 }
 
 public class MauzunTestScope<Event : Any, Model : Any, Effect : Any> internal constructor(

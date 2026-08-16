@@ -4,6 +4,7 @@
 package io.github.raheelnaz.mauzun
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.SavedStateHandle
@@ -11,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel as androidxViewModel
@@ -20,7 +22,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 /**
  * Returns a [PresenterEntry] scoped to [viewModelStoreOwner]. Presenters obtained here can use
  * `rememberSaveable` without accepting a `SavedStateHandle` themselves. The owner must provide the
- * saved-state creation extras supplied by an Activity, Fragment, or navigation entry.
+ * saved-state creation extras supplied by an Activity, Fragment, or navigation entry. The
+ * presenter also receives the lifecycle from the calling composition.
  */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)
@@ -116,6 +119,11 @@ public fun <VM : MauzunViewModel<*, *, *>> mauzunPresenterEntry(
         viewModelStoreOwner = viewModelStoreOwner,
         extras = extras,
     )
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(attached, lifecycle) {
+        val detach = attached.attachLifecycle(lifecycle)
+        onDispose { detach() }
+    }
     return remember(attached) { PresenterEntry.create(attached) }
 }
 

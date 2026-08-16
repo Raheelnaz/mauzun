@@ -16,7 +16,7 @@ import io.github.raheelnaz.mauzun.MauzunViewModelAdapterApi
 import io.github.raheelnaz.mauzun.PresenterEntry
 import io.github.raheelnaz.mauzun.mauzunPresenterEntry
 
-/** Returns a Metro-created [PresenterEntry] with `rememberSaveable` support. */
+/** Returns a Metro-created [PresenterEntry] with `rememberSaveable` and lifecycle support. */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)
 public inline fun <reified VM : MauzunViewModel<*, *, *>> metroMauzunViewModel(
@@ -40,7 +40,7 @@ public inline fun <reified VM : MauzunViewModel<*, *, *>> metroMauzunViewModel(
     }
 }
 
-/** Returns an assisted Metro [PresenterEntry] with `rememberSaveable` support. */
+/** Returns an assisted Metro [PresenterEntry] with `rememberSaveable` and lifecycle support. */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)
 public inline fun <reified VM : MauzunViewModel<*, *, *>> assistedMetroMauzunViewModel(
@@ -64,8 +64,9 @@ public inline fun <reified VM : MauzunViewModel<*, *, *>> assistedMetroMauzunVie
 }
 
 /**
- * Returns a manually assisted Metro [PresenterEntry] with `rememberSaveable` support. Metro
- * resolves [FactoryType], and [createViewModel] runs with that factory as its receiver.
+ * Returns a manually assisted Metro [PresenterEntry] with `rememberSaveable` and lifecycle
+ * support. Metro resolves [FactoryType], and [createViewModel] runs with that factory as its
+ * receiver.
  */
 @Composable
 @OptIn(MauzunViewModelAdapterApi::class)

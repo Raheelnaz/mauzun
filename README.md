@@ -9,7 +9,7 @@ Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `V
 a `StateFlow`, sends events, and receives one-time effects. The test artifact runs the same
 presenter directly on the JVM.
 
-Inside the presenter, use `remember`, `collectAsState`, and Compose effects. Outside it, the screen
+Inside the presenter, use `remember`, Flow collection, and Compose effects. Outside it, the screen
 sees only the binding contract.
 
 ## Quick start
@@ -201,6 +201,7 @@ Collect effects from one place. Concurrent collectors divide the stream between 
 | Effect caught by cancellation | Back in the queue while there is room, behind newer effects |
 | Effect overflow | Throws when the 50 slot queue is full |
 | First read of an entry's `binding.state` | Composes synchronously on the calling thread |
+| Presenter lifecycle | Most active lifecycle among the compositions retrieving the entry |
 | After the ViewModel clears | Sends are dropped, the effects flow completes |
 | A `CollectEvents` block that throws | Cancellation ends that collector, anything else ends the presenter |
 
@@ -216,13 +217,40 @@ few rules keep that state predictable:
   is absent.
 - Use `Nothing` when a screen has no events or effects.
 
+Use `collectAsStateWhileActive` when a particular Flow should stop collecting while its screen
+is below `STARTED`:
+
+```kotlin
+val products by repository.products.collectAsStateWhileActive(initialValue = emptyList())
+```
+
+Use `collectAsState` for work that should continue for the ViewModel's lifetime. Lifecycle-aware
+collection cancels the subscription below its minimum state. A cold upstream stops with that
+subscription. A hot producer keeps whatever lifetime and sharing policy created it.
+
+When collection resumes, a cold Flow starts again and a `StateFlow` immediately emits its
+current value. Hot streams that do not replay, such as a `SharedFlow` with `replay = 0`, can
+miss values emitted while stopped. Room observable queries rerun and emit the database's
+current result.
+
 An uncaught `CancellationException` stops only that event collector. Any other uncaught exception
 stops the presenter and reaches the uncaught exception handler.
 
 ## UI lifecycle
 
-`PresenterHost` collects models with `collectAsStateWithLifecycle`. Effects are collected with
-`repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
+`mauzunViewModel()` observes the calling composition's `LocalLifecycleOwner` and provides it to the
+presenter. Hilt and Metro retrieval use the same path. `PresenterHost` is not involved.
+
+The presenter composition itself remains alive until the ViewModel clears. Moving below `STARTED`
+does not reset `remember`, restart `LaunchedEffect`, or stop event handling. Only work that opts
+into lifecycle-aware APIs pauses. If the same entry is retrieved by more than one composition, the
+presenter receives the most active lifecycle state among them.
+
+With no attached composition, or while every attached owner is below `STARTED`, the presenter
+lifecycle is `CREATED`. It reaches `DESTROYED` only when the ViewModel clears.
+
+`PresenterHost` separately collects models with `collectAsStateWithLifecycle`. Effects are
+collected with `repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
 
 Set `effectsMinActiveState = Lifecycle.State.RESUMED` when an effect must wait until a navigation
 transition finishes.
@@ -252,6 +280,9 @@ another dispatcher still finishes asynchronously.
 The harness fails when the block returns with an unconsumed model or effect. Drive it with
 `sendEvent`. Calling `viewModel.onEvent` writes to the production queue, which the harness does not
 read.
+
+Harness presenters receive a `RESUMED` lifecycle, so `collectAsStateWhileActive` collects with
+no extra setup.
 
 ## Saved state
 
@@ -458,8 +489,9 @@ val presenter = mauzunViewModel<ProductDetailsViewModel> {
 A `ViewModelAssistedFactory` that builds from `CreationExtras` has its own overload,
 `assistedMetroMauzunViewModel<VM>()`.
 
-Saved state attaches the same as `mauzunViewModel()`. Assisted parameters are not saved, so
-reconstruct them from navigation state and pass identifiers rather than instances.
+Saved state and presenter lifecycle attach the same as `mauzunViewModel()`. Assisted parameters
+are not saved, so reconstruct them from navigation state and pass identifiers rather than
+instances.
 
 ## Navigation 3
 
@@ -485,9 +517,10 @@ its own owner. `rememberNavBackStack` restores its keys after process death when
 the destination is recreated.
 
 Presenter state remains while its destination stays on the back stack. Navigating to another
-screen and returning does not reset `remember` values. Use `rememberSaveable` when those values
-must also survive process death. Removing the destination clears its ViewModel and presenter
-state.
+screen can pause lifecycle-aware Flow collection without resetting `remember` values or restarting
+the presenter. Collection resumes when the destination becomes active again. Use
+`rememberSaveable` when values must also survive process death. Removing the destination clears
+its ViewModel and presenter state.
 
 The library does not define a navigation API. Navigation can stay in the UI or be handled as an
 effect, depending on the application.

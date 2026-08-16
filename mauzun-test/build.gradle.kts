@@ -36,6 +36,7 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
 
     implementation(libs.molecule.runtime)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.turbine)
 
     testImplementation(libs.junit)

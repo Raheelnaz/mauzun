@@ -1,5 +1,16 @@
 # Change Log
 
+## [Unreleased]
+
+- Provide the lifecycle from `mauzunViewModel()` to the presenter. A presenter can opt individual
+  Flows into lifecycle-aware collection without stopping its composition, resetting remembered
+  state, restarting `LaunchedEffect`, or interrupting event handling.
+- Add `collectAsStateWhileActive`. It pauses a Flow below the given lifecycle state and does
+  not require `Dispatchers.Main`, so harness tests need no `Dispatchers.setMain`.
+- Use the most active state when one presenter is retrieved by multiple compositions. Hilt and
+  Metro inherit the behavior through the shared retrieval path.
+- Run test-harness presenters with a `RESUMED` lifecycle.
+
 ## [0.11.0] - 2026-08-16
 
 - Update Compose runtime to 1.11.4 and lifecycle to 2.10.0. Compose 1.12 and lifecycle 2.11
