@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [0.11.0] - 2026-08-16
 
 - Update Compose runtime to 1.11.4 and lifecycle to 2.10.0. Compose 1.12 and lifecycle 2.11
   need AGP 9.1, which stays parked.
