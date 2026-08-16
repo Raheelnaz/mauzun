@@ -239,24 +239,21 @@ stops the presenter and reaches the uncaught exception handler.
 ## UI lifecycle
 
 `mauzunViewModel()` observes the calling composition's `LocalLifecycleOwner` and provides it to the
-presenter. Hilt and Metro retrieval use the same path. `PresenterHost` is not involved.
+presenter. Hilt and Metro retrieval use the same path.
 
-The presenter composition itself remains alive until the ViewModel clears. Moving below `STARTED`
-does not reset `remember`, restart `LaunchedEffect`, or stop event handling. Only work that opts
-into lifecycle-aware APIs pauses. If the same entry is retrieved by more than one composition, the
-presenter receives the most active lifecycle state among them.
+The composition runs until the ViewModel clears. Moving below `STARTED` only pauses the
+opted-in Flows. Everything else, `remember`, `LaunchedEffect`, event handling, carries on. If
+the same entry is retrieved by more than one composition, the presenter receives the most
+active lifecycle state among them.
 
 With no attached composition, or while every attached owner is below `STARTED`, the presenter
 lifecycle is `CREATED`. It reaches `DESTROYED` only when the ViewModel clears.
 
-`PresenterHost` separately collects models with `collectAsStateWithLifecycle`. Effects are
-collected with `repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
+`PresenterHost` collects models with `collectAsStateWithLifecycle`. Effects are collected with
+`repeatOnLifecycle` and default to `Lifecycle.State.STARTED`.
 
 Set `effectsMinActiveState = Lifecycle.State.RESUMED` when an effect must wait until a navigation
 transition finishes.
-
-`PresenterHost` controls collection in the UI. It does not pause the presenter itself. The molecule
-runs until the ViewModel is cleared.
 
 ## Testing
 
@@ -293,7 +290,7 @@ returns the entry, so the first composition can restore values after process rec
 val presenter = mauzunViewModel<ProductViewModel>()
 ```
 
-The entry is the only supported production route to the binding. Saved state therefore attaches
+The entry is the only supported production route to the binding, so saved state attaches
 before UI code can start the presenter. A `MauzunViewModel` subclass cannot read its own produced
 state, including from its constructor, `init` block, or `present` function. An injected
 `SavedStateHandle` remains available for application state that does not belong in
@@ -508,7 +505,7 @@ entryDecorators = listOf(
 `rememberViewModelStoreNavEntryDecorator` ships in its own artifact:
 
 ```kotlin
-implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0")
+implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.10.0")
 ```
 
 Retrieve the presenter inside the entry. No explicit key is needed, since each destination has
