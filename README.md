@@ -216,21 +216,6 @@ few rules keep that state predictable:
   is absent.
 - Use `Nothing` when a screen has no events or effects.
 
-If a broad catch handles failures inside a presenter coroutine, check for real cancellation first:
-
-```kotlin
-try {
-    repository.refresh()
-} catch (failure: Throwable) {
-    currentCoroutineContext().ensureActive()
-    error = failure.toUiError()
-}
-```
-
-`ensureActive()` rethrows when the presenter coroutine was cancelled. It does not rethrow a
-`TimeoutCancellationException` caught outside its `withTimeout` block, because the surrounding
-event collector is still active.
-
 An uncaught `CancellationException` stops only that event collector. Any other uncaught exception
 stops the presenter and reaches the uncaught exception handler.
 
