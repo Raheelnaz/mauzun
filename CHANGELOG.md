@@ -2,13 +2,13 @@
 
 ## [Unreleased]
 
-- Provide the lifecycle from `mauzunViewModel()` to the presenter. A presenter can opt individual
-  Flows into lifecycle-aware collection without stopping its composition, resetting remembered
-  state, restarting `LaunchedEffect`, or interrupting event handling.
+- Provide the lifecycle from `mauzunViewModel()` to the presenter. A presenter can pause
+  individual Flows while its screen is covered. The composition keeps running, so remembered
+  state, `LaunchedEffect`, events, and effects carry on as before.
 - Add `collectAsStateWhileActive`. It pauses a Flow below the given lifecycle state and does
   not require `Dispatchers.Main`, so harness tests need no `Dispatchers.setMain`.
 - Use the most active state when one presenter is retrieved by multiple compositions. Hilt and
-  Metro inherit the behavior through the shared retrieval path.
+  Metro get it through the same retrieval path.
 - Run test-harness presenters with a `RESUMED` lifecycle.
 
 ## [0.11.0] - 2026-08-16
