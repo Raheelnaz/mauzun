@@ -3,8 +3,7 @@
 [![build](https://github.com/Raheelnaz/mauzun/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/Raheelnaz/mauzun/actions/workflows/build.yaml?query=branch%3Amain)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.raheelnaz/mauzun)](https://central.sonatype.com/artifact/io.github.raheelnaz/mauzun)
 
-Mauzun (موزوں, "well-balanced") uses a
-[Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
+Use a [Molecule](https://github.com/cashapp/molecule) presenter as an Android `ViewModel`.
 
 `MauzunViewModel` runs a composable presenter in `viewModelScope`. The screen reads models from
 a `StateFlow`, sends events, and receives one-time effects. The test artifact runs the same
@@ -514,7 +513,8 @@ The project is pre-1.0. Minor releases may change the public API. See [CHANGELOG
 before upgrading.
 
 Molecule is maintained by [Cash App](https://github.com/cashapp/molecule). Mauzun provides the
-Android ViewModel and testing integration around it.
+Android ViewModel and testing integration around it, and takes its name from the Urdu for
+well-balanced, written موزوں.
 
 ## License
 
