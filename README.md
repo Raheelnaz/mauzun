@@ -489,9 +489,16 @@ entryDecorators = listOf(
 )
 ```
 
+`rememberViewModelStoreNavEntryDecorator` ships in its own artifact:
+
+```kotlin
+implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0")
+```
+
 Retrieve the presenter inside the entry. No explicit key is needed, since each destination has
-its own owner. `rememberNavBackStack` restores its keys after process death, so a restored key's
-arguments reach the assisted factory again when the destination is recreated.
+its own owner. `rememberNavBackStack` restores its keys after process death when every key is a
+`@Serializable` `NavKey`, so a restored key's arguments reach the assisted factory again when
+the destination is recreated.
 
 Presenter state remains while its destination stays on the back stack. Navigating to another
 screen and returning does not reset `remember` values. Use `rememberSaveable` when those values
